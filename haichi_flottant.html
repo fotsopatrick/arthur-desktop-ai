@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Haichi Flottant — Compagnon Souverain</title>
+<style>
+  :root {
+    --bg-trans: rgba(8, 14, 26, 0.82);
+    --border: rgba(56, 189, 248, 0.35);
+    --cyan: #38bdf8;
+    --green: #22c55e;
+    --gold: #f59e0b;
+    --text: #f8fafc;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+  /* Ce que Haichi ECRIT doit pouvoir se selectionner et se copier.
+     Ne le 15/09/2026 : Patrick ne pouvait rien copier de ses reponses. */
+  .speech-bubble, .speech-bubble *, .chat-input {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  /* ── LE CIEL ────────────────────────────────────────────────────────────
+     Un fond de nuit, et des etoiles dessinees derriere Haichi. Le ciel est
+     tout au fond (z-index -1) : il ne gene ni les clics ni la bulle. */
+  #ciel {
+    position: fixed;
+    inset: 0;                 /* il couvre tout l ecran */
+    z-index: -1;
+    background:
+      radial-gradient(1200px 700px at 50% 108%, #123 0%, transparent 60%),
+      linear-gradient(180deg, #02040c 0%, #060b1c 45%, #0a1030 100%);
+  }
+  #etoiles { position: fixed; inset: 0; z-index: -1; }
+
+  /* Mode transparent : plus de ciel, on voit le bureau. Haichi, sa bulle et
+     sa barre restent bien lisibles parce qu ils ont leur propre fond. */
+  html.sans-ciel #ciel,
+  html.sans-ciel #etoiles { display: none; }
+  html.sans-ciel, html.sans-ciel body { background: transparent !important; }
+
+  body {
+    background: transparent;
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 16px;
+  }
+
+  .speech-bubble::-webkit-scrollbar { width: 7px; }
+  .speech-bubble::-webkit-scrollbar-thumb {
+    background: rgba(56,189,248,.35); border-radius: 4px; }
+  .speech-bubble::-webkit-scrollbar-track { background: transparent; }
+
+  /* Le bouton de la voix : gris quand elle dort, bleu quand elle parle. */
+  .btn-voix {
+    width: 38px; height: 38px; flex: 0 0 38px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(148,163,184,.45);
+    background: rgba(15,23,42,.75);
+    color: #94a3b8; font-size: 17px; cursor: pointer;
+    transition: all .2s ease;
+  }
+  .btn-voix:hover { transform: scale(1.08); }
+  /* la voix est prete mais Chrome attend un clic : le bouton respire */
+  .btn-voix.attend { animation: respire 1.1s ease-in-out infinite; }
+  @keyframes respire { 0%,100%{ box-shadow:0 0 0 0 rgba(56,189,248,.55) }
+                       50%    { box-shadow:0 0 0 9px rgba(56,189,248,0) } }
+
+  .btn-voix.active {
+    border-color: var(--cyan); color: var(--cyan);
+    background: rgba(56,189,248,.14);
+    box-shadow: 0 0 14px rgba(56,189,248,.35);
+  }
+
+  /* Bulle de Pensée au-dessus de la Tête */
+  .bubble-container {
+    flex: 0 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 12px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+
+  .bubble-container.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .speech-bubble {
+    /* La bulle ne doit JAMAIS ecraser Haichi. Elle s arrete a la moitie de la
+       hauteur de la fenetre ; si le texte est plus long, il defile dedans.
+       Ne le 15/09/2026 : une reponse de circuit remplissait tout l ecran. */
+    max-height: 46vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--bg-trans);
+    border: 1.5px solid var(--cyan);
+    border-radius: 18px;
+    padding: 14px 18px;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25), var(--shadow);
+    backdrop-filter: blur(16px);
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #e0f2fe;
+  }
+
+  /* Flèche de la bulle pointant vers Haichi */
+  .speech-bubble::after {
+    content: "";
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: var(--cyan) transparent;
+    display: block;
+    width: 0;
+  }
+
+  .think-tag {
+    display: block;
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: var(--gold);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+    padding-bottom: 4px;
+  }
+
+  /* Avatar Haichi Flottant Animated 3D/Hologramme */
+  .haichi-avatar {
+    width: 110px;
+    height: 110px;
+    position: relative;
+    cursor: grab;
+    margin-bottom: 12px;
+    transition: transform 0.2s ease;
+  }
+
+  .haichi-avatar:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+  }
+
+  .haichi-core {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #0284c7 50%, #030712 90%);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 30px var(--cyan), inset 0 0 15px rgba(255, 255, 255, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: float 4s ease-in-out infinite;
+    position: relative;
+  }
+
+  /* Yeux expressifs d'Haichi */
+  .haichi-eyes {
+    display: flex;
+    gap: 18px;
+  }
+
+  .eye {
+    width: 14px;
+    height: 22px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 0 10px #ffffff;
+    animation: blink 4s infinite;
+    position: relative;
+  }
+
+  .eye::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #0284c7;
+    border-radius: 50%;
+    top: 4px;
+    right: 3px;
+  }
+
+  /* Anneau Holographique Flottant */
+  .holo-ring {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border: 1.5px dashed var(--cyan);
+    border-radius: 50%;
+    animation: spin 10s linear infinite;
+    opacity: 0.6;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
+
+  @keyframes blink {
+    0%, 96%, 100% { transform: scaleY(1); }
+    98% { transform: scaleY(0.1); }
+  }
+
+  /* Barre de Chat Transparente & Stylisée */
+  .chat-bar {
+    width: 100%;
+    max-width: 520px;
+    background: var(--bg-trans);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 8px 6px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(16px);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .chat-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .btn-send {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: 1px solid var(--cyan);
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .btn-send:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+  }
+</style>
+</head>
+<body>
+<div id="ciel"></div>
+<canvas id="etoiles"></canvas>
+<script>
+/* Si l adresse dit "fond=transparent", on efface le ciel : on voit alors le
+   bureau derriere Haichi. Sinon, le ciel etoile reste. */
+(function(){
+  if (new URLSearchParams(location.search).get("fond") === "transparent") {
+    document.documentElement.classList.add("sans-ciel");
+  }
+})();
+</script>
+
+  <!-- Bulle de Réponse au-dessus de la Tête d'Haichi -->
+  <div class="bubble-container" id="bubble">
+    <div class="speech-bubble">
+      <span class="think-tag" id="think-tag">🧠 HAICHI NANO-REASONER (&lt; 0.1 ms)</span>
+      <div id="reply-text">Bonjour Patrick ! Je suis Haichi, ton compagnon flottant. Pose-moi une question !</div>
+    </div>
+  </div>
+
+  <!-- Avatar Haichi 3D Holographique -->
+  <div class="haichi-avatar">
+    <div class="holo-ring"></div>
+    <div class="haichi-core">
+      <div class="haichi-eyes">
+        <div class="eye"></div>
+        <div class="eye"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barre de Chat Transparente -->
+  <div class="chat-bar">
+    <button id="btn-voix" class="btn-voix" title="Activer ou couper la voix de Haichi">🔇</button>
+    <input type="text" class="chat-input" id="chat-input" placeholder="Parle à Haichi... (ex: qui sont les agents de la tour ?)" autocomplete="off"/>
+    <button class="btn-send" onclick="envoyer()">TRANSMETTRE ⚡</button>
+  </div>
+
+<script>
+  function montrerBulle(texte, pensee) {
+    const bubble = document.getElementById("bubble");
+    const replyText = document.getElementById("reply-text");
+    const thinkTag = document.getElementById("think-tag");
+
+    if (pensee) {
+      thinkTag.style.display = "block";
+      thinkTag.textContent = "🧠 THOUGHT : " + pensee.substring(0, 70) + "...";
+    } else {
+      thinkTag.style.display = "none";
+    }
+
+    replyText.textContent = texte;
+    bubble.classList.add("visible");
+    if (texte && !/^Haichi refléchit/.test(texte)) direAVoixHaute(texte);
+  }
+
+  async function envoyer() {
+    const input = document.getElementById("chat-input");
+    const prompt = input.value.trim();
+    if (!prompt) return;
+
+    input.value = "";
+    montrerBulle("Haichi refléchit...", "Recherche déterministe sub-milliseconde...");
+
+    try {
+      const res = await fetch("http://127.0.0.1:8790/api/nano-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt })
+      });
+
+      const data = await res.json();
+      
+      let thought = "";
+      let answer = "";
+
+      if (data.raw_output) {
+        const mThink = data.raw_output.match(/<think>(.*?)<\/think>/s);
+        const mAns = data.raw_output.match(/<answer>(.*?)<\/answer>/s);
+        if (mThink && mThink[1]) thought = mThink[1].trim();
+        if (mAns && mAns[1]) answer = mAns[1].trim();
+      }
+
+      if (!answer && data.answer) answer = data.answer;
+      if (!answer && data.reply) answer = data.reply;
+      if (!answer) answer = "J'ai bien analysé ta demande avec le Nano-Moteur !";
+
+      montrerBulle(answer, thought);
+    } catch (err) {
+      montrerBulle("Erreur de connexion avec le Cockpit local: " + err.message, "Échec réseau");
+    }
+  }
+
+  document.getElementById("chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") envoyer();
+  });
+
+  /* ── LA VOIX DE HAICHI ──────────────────────────────────────────────────
+     Elle est OPTIONNELLE. Chrome interdit de parler tant que personne n a
+     clique : c est donc le clic sur ce bouton qui la debloque (mesure du
+     15/09/2026 : erreur "not-allowed" sans clic). Le choix est retenu.  */
+  const btnVoix = document.getElementById("btn-voix");
+  let voixActive = false;
+  try { voixActive = localStorage.getItem("haichi-voix") === "on"; } catch (e) {}
+
+  /* La voix ne vient plus de Chrome : sur ce poste, Chrome annonce 19 voix
+     mais aucune ne peut jouer (aucun moteur installe — il repond
+     "not-allowed"). C est la machine qui fabrique le son, avec piper. */
+
+  function montrerLeBouton() {
+    btnVoix.textContent = voixActive ? "🔊" : "🔇";
+    btnVoix.classList.toggle("active", voixActive);
+    btnVoix.title = voixActive ? "Haichi parle — cliquer pour le faire taire"
+                               : "Haichi est muet — cliquer pour lui donner la voix";
+  }
+  montrerLeBouton();
+
+  // On mesure la voix la premiere fois qu elle sert, et on envoie au cockpit.
+  let dejaMesure = false;
+
+  let sonEnCours = null;
+
+
+  function direAVoixHaute(texte) {
+    if (!voixActive || !texte) return;
+    // Le son ne sort PAS du navigateur : Chrome interdit de faire du bruit
+    // tant que personne n a clique. C est la machine qui parle, par ses
+    // haut-parleurs. Aucun clic n est necessaire.
+    const t0 = performance.now();
+    fetch("/api/voix", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texte: texte, jouer: true })
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (!dejaMesure) {
+        dejaMesure = true;
+        envoyerLaMesure({
+          moteur: "piper, sur la machine",
+          fabrication_et_lancement_ms: Math.round(performance.now() - t0),
+          lettres_lues: texte.length,
+          joue_sur: d.joue_sur || "?"
+        });
+      }
+    })
+    .catch(e => envoyerLaMesure({ panne: e.message }));
+  }
+
+  function envoyerLaMesure(m) {
+    fetch("/api/mesure-voix", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(m) }).catch(() => {});
+  }
+
+  btnVoix.addEventListener("click", () => {
+    voixActive = !voixActive;
+    try { localStorage.setItem("haichi-voix", voixActive ? "on" : "off"); } catch (e) {}
+    btnVoix.classList.remove("attend");
+    montrerLeBouton();
+    if (voixActive) {
+      // ce clic-ci debloque le son : on en profite pour dire un mot
+      direAVoixHaute("Ma voix est allumée. Pose-moi une question.");
+    } else {
+      fetch("/api/voix-stop", { method: "POST" }).catch(() => {});
+    }
+  });
+
+  // Si l'adresse contient une question (par exemple ...?q=la+tour), Haichi la
+  // pose tout seul des l'ouverture. Sert a verifier la bulle sans taper au clavier.
+  const questionDansAdresse = new URLSearchParams(location.search).get("q");
+
+  setTimeout(() => {
+    if (questionDansAdresse) {
+      document.getElementById("chat-input").value = questionDansAdresse;
+      envoyer();
+    } else {
+      montrerBulle("Salut Patrick ! Je suis Haichi. Ma barre de chat est prête !", "Initialisation réussie");
+    }
+  }, 600);
+</script>
+
+<script>
+/* ── LES ETOILES ─────────────────────────────────────────────────────────
+   On dessine des points qui respirent doucement, et de temps en temps une
+   etoile filante. Tout est calcule ici : aucune image a telecharger.      */
+(function () {
+  const toile = document.getElementById("etoiles");
+  const pinceau = toile.getContext("2d");
+  let largeur = 0, hauteur = 0, etoiles = [], filantes = [];
+
+  function auHasard(min, max) { return min + Math.random() * (max - min); }
+
+  function fabriquerLeCiel() {
+    largeur  = toile.width  = window.innerWidth;
+    hauteur  = toile.height = window.innerHeight;
+    // une etoile pour environ 4000 points d ecran, au minimum 90
+    const combien = Math.max(90, Math.round((largeur * hauteur) / 4000));
+    etoiles = [];
+    for (let i = 0; i < combien; i++) {
+      etoiles.push({
+        x: Math.random() * largeur,
+        y: Math.random() * hauteur,
+        rayon: auHasard(0.4, 1.6),
+        eclat: auHasard(0.25, 1),
+        vitesse: auHasard(0.004, 0.02),   // vitesse du clignotement
+        sens: Math.random() < 0.5 ? -1 : 1,
+        teinte: Math.random() < 0.12 ? "180, 220, 255" : "255, 255, 255"
+      });
+    }
+  }
+
+  function lancerUneFilante() {
+    filantes.push({
+      x: auHasard(0, largeur * 0.7),
+      y: auHasard(0, hauteur * 0.45),
+      longueur: auHasard(80, 190),
+      vitesse: auHasard(5, 9),
+      vie: 1
+    });
+  }
+
+  function dessiner() {
+    pinceau.clearRect(0, 0, largeur, hauteur);
+
+    for (const e of etoiles) {
+      e.eclat += e.vitesse * e.sens;
+      if (e.eclat <= 0.18) { e.eclat = 0.18; e.sens = 1; }
+      if (e.eclat >= 1)    { e.eclat = 1;    e.sens = -1; }
+      pinceau.beginPath();
+      pinceau.arc(e.x, e.y, e.rayon, 0, Math.PI * 2);
+      pinceau.fillStyle = "rgba(" + e.teinte + "," + e.eclat.toFixed(2) + ")";
+      pinceau.fill();
+      if (e.rayon > 1.2) {                     // les grosses ont un halo
+        pinceau.beginPath();
+        pinceau.arc(e.x, e.y, e.rayon * 3, 0, Math.PI * 2);
+        pinceau.fillStyle = "rgba(" + e.teinte + "," + (e.eclat * 0.08).toFixed(3) + ")";
+        pinceau.fill();
+      }
+    }
+
+    for (let i = filantes.length - 1; i >= 0; i--) {
+      const f = filantes[i];
+      const trainee = pinceau.createLinearGradient(f.x, f.y, f.x + f.longueur, f.y + f.longueur * 0.45);
+      trainee.addColorStop(0, "rgba(255,255,255," + f.vie.toFixed(2) + ")");
+      trainee.addColorStop(1, "rgba(255,255,255,0)");
+      pinceau.strokeStyle = trainee;
+      pinceau.lineWidth = 1.6;
+      pinceau.beginPath();
+      pinceau.moveTo(f.x, f.y);
+      pinceau.lineTo(f.x + f.longueur, f.y + f.longueur * 0.45);
+      pinceau.stroke();
+      f.x += f.vitesse; f.y += f.vitesse * 0.45; f.vie -= 0.012;
+      if (f.vie <= 0 || f.x > largeur) filantes.splice(i, 1);
+    }
+
+    requestAnimationFrame(dessiner);
+  }
+
+  window.addEventListener("resize", fabriquerLeCiel);
+  fabriquerLeCiel();
+  dessiner();
+  // une etoile filante toutes les 6 a 14 secondes
+  (function prochaineFilante() {
+    setTimeout(() => { lancerUneFilante(); prochaineFilante(); }, auHasard(6000, 14000));
+  })();
+})();
+</script>
+</body>
+</html>

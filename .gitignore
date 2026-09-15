@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.log
+voix-cache/
+mesure-voix.json
+*.avant-*
