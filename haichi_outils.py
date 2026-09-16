@@ -13,7 +13,7 @@ Un outil doit pouvoir dire ca, au lieu d inventer.
 
 Chaque outil a : des mots qui le reveillent, et une fonction qui va voir.
 """
-import json, socket, re, os, datetime, urllib.request
+import json, socket, re, os, datetime, unicodedata, urllib.request
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 COCKPIT = "http://127.0.0.1:8790"
@@ -34,10 +34,37 @@ def _port_ouvert(port, patience=0.4):
         s.close()
 
 
+# Ou vit la liste des modules du cockpit.
+#
+# Le 16/09/2026, Arthur repondait « je n arrive pas a lire la liste des
+# modules ». La raison : ce fichier-ci vit dans ~/haichi, et le cockpit ne
+# fait que POINTER dessus par un lien. Python resout le lien, donc il
+# cherchait config.json a cote du vrai fichier — ou il n'y en a pas.
+#
+# On ne devine donc pas un seul chemin : on regarde les lieux connus dans
+# l'ordre, et on dit lequel a servi. Meme lecon que « copier sans les
+# conditions » : un fichier deplace emporte rarement son voisinage.
+_LIEUX_DE_LA_CONFIGURATION = [
+    os.path.join(ICI, "config.json"),
+    os.path.expanduser("~/cockpit-generique/config.json"),
+]
+
+
+def _ou_est_la_configuration():
+    """Rend le premier chemin qui existe vraiment, ou None."""
+    for chemin in _LIEUX_DE_LA_CONFIGURATION:
+        if os.path.exists(chemin):
+            return chemin
+    return None
+
+
 def _modules():
     """Rend (allumes, eteints) : deux listes de (nom, port)."""
+    chemin = _ou_est_la_configuration()
+    if not chemin:
+        return [], []
     try:
-        d = json.load(open(os.path.join(ICI, "config.json"), encoding="utf-8"))
+        d = json.load(open(chemin, encoding="utf-8"))
     except Exception:
         return [], []
     allumes, eteints = [], []
@@ -188,6 +215,12 @@ def _lire_un_calcul(question):
     # sont entre deux chiffres : sinon « 2,5 » devenait « 2 5 », soit deux
     # nombres au lieu d'un, et Arthur refusait de calculer.
     q = " " + str(question).lower() + " "
+    # Les accents s'enlevent AVANT tout. Sans ca (16/09/2026), Arthur lisait
+    # « multiplie » mais restait muet devant « multiplié » : il ne savait
+    # compter que si on ecrivait mal. On decompose chaque lettre accentuee
+    # (e + accent) puis on jette les accents, sans toucher aux chiffres.
+    q = "".join(c for c in unicodedata.normalize("NFD", q)
+                if not unicodedata.combining(c))
     q = re.sub(r"[?!;:]", " ", q)
     q = re.sub(r"(?<!\d)[.,]|[.,](?!\d)", " ", q)
 
@@ -372,4 +405,74 @@ OUTILS.extend([
       "a quoi servent les agents", "les familles d agents",
       "combien d agents sans cervelle", "quels agents sont muets"],
      outil_que_font_les_agents),
+])
+
+
+# ── 3e OUTIL DU 16/09/2026 (session orel-65, demande de Patrick) ───────
+# « Quels agents ont encore un moteur allume ? » Sur 414, tres peu en ont
+# un. Et attention : un moteur « lecture-seule » veut dire MUSELE (il lit,
+# il n agit pas). L outil le DIT, pour ne pas faire croire qu un agent
+# musele est en pleine forme. Aucun mot en entree (comme tous les outils
+# du cockpit). Il ne ment pas : si le releve ne repond pas, il le dit.
+def outil_agents_moteur_allume():
+    try:
+        d = json.loads(_lire("https://dive.matourdecontrole.fr/salle/releve.json",
+                             patience=8))
+    except Exception:
+        return "Je n arrive pas a lire le releve des agents de la salle."
+    gens = d.get("correspondants") or []
+    if not gens:
+        return "Le releve des agents de la salle est vide."
+    allumes = [a for a in gens if a.get("cervelle")]
+    if not allumes:
+        return "Aucun agent n a de moteur allume en ce moment."
+    # On separe les vrais moteurs des moteurs « lecture-seule » (museles).
+    def moteur(a):
+        c = a.get("cervelle") or {}
+        return (c.get("moteur") if isinstance(c, dict) else str(c)) or "?"
+    museles = [a for a in allumes if "lecture-seule" in moteur(a)]
+    vifs = [a for a in allumes if "lecture-seule" not in moteur(a)]
+    txt = (u"\U0001F50B %d agents sur %d ont un moteur allume. "
+           % (len(allumes), len(gens)))
+    if vifs:
+        txt += "Vraiment actifs : " + ", ".join(
+            "%s (%s)" % (a.get("nom", "?"), moteur(a)) for a in vifs) + ". "
+    if museles:
+        txt += ("Museles (moteur lecture-seule : ils lisent mais n agissent "
+                "pas) : " + ", ".join(a.get("nom", "?") for a in museles) + ".")
+    return txt.strip()
+
+
+OUTILS.extend([
+    (["quels agents ont un moteur", "qui a un moteur allume",
+      "les agents actifs", "qui peut encore agir", "agents avec cervelle",
+      "qui est musele", "moteur allume"],
+     outil_agents_moteur_allume),
+])
+
+
+# ── REDEMARRER / ROLLBACK LE COCKPIT (16/09/2026) ──────────────────────
+# Patrick veut pouvoir dire a Arthur « redemarre le cockpit ». Arthur lance
+# le script de rollback : il remet cockpit.py a sa derniere photo qui marche
+# (etiquette cockpit-ok) et rallume 8790.
+def outil_redemarrer_cockpit():
+    import subprocess as _sp, os as _os
+    script = _os.path.expanduser("~/cockpit-generique/rollback-cockpit.sh")
+    if not _os.path.exists(script):
+        return "Je ne trouve pas le script de rollback du cockpit."
+    try:
+        r = _sp.run(["bash", script], capture_output=True, text=True, timeout=45)
+        sortie = (r.stdout or "") + (r.stderr or "")
+    except Exception as e:
+        return "Je n'ai pas pu relancer le cockpit : %s" % str(e)[:100]
+    if "cockpit 8790 : 200" in sortie or "revenu a un etat qui marche" in sortie or "revenu à un état qui marche" in sortie:
+        return "C'est fait : j'ai remis le cockpit a sa derniere photo qui marche, et il repond (8790)."
+    return "J'ai lance le rollback mais le cockpit ne repond pas encore. Regarde /tmp/cockpit-8790.log."
+
+
+OUTILS.extend([
+    (["redemarre le cockpit", "relance le cockpit", "redemarrer le cockpit",
+      "rollback cockpit", "repare le cockpit", "remets le cockpit",
+      "le cockpit est casse", "le cockpit ne repond plus"],
+     outil_redemarrer_cockpit),
 ])
