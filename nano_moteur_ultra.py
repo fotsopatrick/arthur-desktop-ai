@@ -125,7 +125,26 @@ REFUS_SANTE = ("Je ne sais pas répondre avec certitude. Je ne traite pas les "
 # ── LE RENFORT ────────────────────────────────────────────────────────────
 # Quand Haichi ne sait pas, il ne devine pas : il demande a Qwen, le modele
 # qui tourne sur Alice, l autre machine de la maison.
-ALICE_URL = "http://192.168.1.61:8081/v1/chat/completions"
+# ── OU SONT LES MACHINES DE LA MAISON ────────────────────────────────────
+# Ne le 16/09/2026, avant de publier le code. Les adresses du reseau de
+# Patrick etaient ecrites en dur ici. Publiees, elles disent a n'importe qui
+# ou frapper. Elles vivent maintenant dans reglages-maison.json, qui ne part
+# jamais dans le depot. Sans ce fichier, Arthur se rabat sur sa propre
+# machine et continue de marcher.
+def _reglage_maison(cle, defaut):
+    import json as _j, os as _o
+    try:
+        with open(_o.path.join(_o.path.dirname(_o.path.abspath(__file__)),
+                               "reglages-maison.json"), encoding="utf-8") as f:
+            return _j.load(f).get(cle) or defaut
+    except (OSError, ValueError):
+        return defaut
+
+
+ALICE_URL = _reglage_maison("alice_cerveau",
+                            "http://127.0.0.1:8081/v1/chat/completions")
+DOCUMENTS_URL = _reglage_maison("alice_documents",
+                                "http://127.0.0.1:8000/api/v1/knowledge?q=")
 # L etage du milieu : les documents qu Alice a deja avales (100 documents,
 # 1197 morceaux de texte). Mesure du 15/09/2026 : la recherche met 286 ms, et
 # elle donne une NOTE a chaque morceau. Note 2 ou plus = le morceau parle bien
@@ -133,7 +152,6 @@ ALICE_URL = "http://192.168.1.61:8081/v1/chat/completions"
 # Pourquoi cet etage existe : sans lui, Qwen INVENTE. Question sur une faille
 # Debian recente -> Qwen seul a repondu "CVE-2023-2687" (fabriquee, datee de
 # 2023) ; avec les documents il a repondu "CVE-2026-5928" (la vraie).
-DOCUMENTS_URL = "http://192.168.1.61:8000/api/v1/knowledge?q="
 # La "note" rendue par la recherche n est PAS fiable : "17 multiplie par 4"
 # obtient 2 et "le plus grand ocean" obtient 3, alors que les documents ne
 # parlent ni de l un ni de l autre. Elle compte les mots qui se ressemblent.

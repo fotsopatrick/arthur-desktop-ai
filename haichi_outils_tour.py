@@ -76,11 +76,26 @@ def _demander_a_la_tour(commande, patience=20):
 
 
 # ── LES MACHINES DE LA MAISON ───────────────────────────────────────────────
-_MAISON = [
-    ("nomi",  "127.0.0.1",    8790, "ton PC, le cockpit"),
-    ("alice", "192.168.1.61", 8081, "le cerveau qui reflechit ici"),
-    ("alice", "192.168.1.61", 8000, "le portail d'alice"),
-]
+def _machines_de_la_maison():
+    """Ou sont les machines. Elles ne sont PAS ecrites ici.
+
+    Ne le 16/09/2026 : leurs adresses etaient en dur dans ce fichier, et le
+    depot allait devenir public. Elles vivent maintenant dans
+    reglages-maison.json, qui reste a la maison. Sans ce fichier, Arthur ne
+    regarde que la machine sur laquelle il tourne — et il marche quand meme.
+    """
+    defaut = [("cette machine", "127.0.0.1", 8790, "le cockpit")]
+    chemin = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "reglages-maison.json")
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            lues = json.load(f).get("machines")
+        return [tuple(m) for m in lues] if lues else defaut
+    except (OSError, ValueError, TypeError):
+        return defaut
+
+
+_MAISON = _machines_de_la_maison()
 
 
 def _frapper(hote, port, patience=1.5):

@@ -200,8 +200,8 @@
       "alice 192",
       "postes reseau"
     ],
-    "think": "1. Topologie du réseau local et rôles respectifs.\n2. nomi (192.168.1.24) : poste de pilotage, cockpit, dev.\n3. alice (192.168.1.61) : serveur d'inférence neuronal (Qwen 3B sur :8081, Gate :8000, Yui :8096, Carte :8003).",
-    "answer": "🖥️ TOPOLOGIE DU RÉSEAU LOCAL :\n• nomi (192.168.1.24) : Poste de pilotage local, Cockpit générique (:8790), Carte PC (:8003).\n• alice (192.168.1.61) : Serveur d'inférence dédié (Qwen 2.5 3B sur :8081, Alice Gate :8000, Yui :8096, Carte :8003). Interdiction stricte de redémarrer (LUKS)."
+    "think": "1. Topologie du réseau local et rôles respectifs.\n2. nomi (MACHINE-DU-RESEAU-LOCAL) : poste de pilotage, cockpit, dev.\n3. alice (MACHINE-DU-RESEAU-LOCAL) : serveur d'inférence neuronal (Qwen 3B sur :8081, Gate :8000, Yui :8096, Carte :8003).",
+    "answer": "🖥️ TOPOLOGIE DU RÉSEAU LOCAL :\n• nomi (MACHINE-DU-RESEAU-LOCAL) : Poste de pilotage local, Cockpit générique (:8790), Carte PC (:8003).\n• alice (MACHINE-DU-RESEAU-LOCAL) : Serveur d'inférence dédié (Qwen 2.5 3B sur :8081, Alice Gate :8000, Yui :8096, Carte :8003). Interdiction stricte de redémarrer (LUKS)."
   },
   "accueil_tour": {
     "mots": [
@@ -219,13 +219,13 @@
       "quatre concepts",
       "distinction tour",
       "difference vitrine",
-      "145.239.77.232",
+      "LE-SERVEUR",
       "8021",
       "les quatre choses",
       "confusion tour"
     ],
-    "think": "1. Rappel des 4 piliers fondamentaux de la doctrine Patrick.\n2. L'accueil (tour.matourdecontrole.fr/tour/dashboard), La vitrine (matourdecontrole.fr), La tour (145.239.77.232), La salle des sessions (192.168.1.24:8021).",
-    "answer": "🗺️ LES 4 PILIERS DE LA TOUR DE CONTRÔLE :\n1. L'accueil : Le tableau de bord avec l'actualité des agents (tour.matourdecontrole.fr/tour/dashboard).\n2. La vitrine : Le site public visible de l'extérieur (matourdecontrole.fr).\n3. La tour : Le serveur VPS lui-même (145.239.77.232).\n4. La salle des sessions : L'interface des tâches et sessions d'agents (192.168.1.24:8021)."
+    "think": "1. Rappel des 4 piliers fondamentaux de la doctrine Patrick.\n2. L'accueil (tour.matourdecontrole.fr/tour/dashboard), La vitrine (matourdecontrole.fr), La tour (LE-SERVEUR), La salle des sessions (MACHINE-DU-RESEAU-LOCAL:8021).",
+    "answer": "🗺️ LES 4 PILIERS DE LA TOUR DE CONTRÔLE :\n1. L'accueil : Le tableau de bord avec l'actualité des agents (tour.matourdecontrole.fr/tour/dashboard).\n2. La vitrine : Le site public visible de l'extérieur (matourdecontrole.fr).\n3. La tour : Le serveur VPS lui-même (LE-SERVEUR).\n4. La salle des sessions : L'interface des tâches et sessions d'agents (MACHINE-DU-RESEAU-LOCAL:8021)."
   },
   "architecture_infrastructure_tour": {
     "mots": [
@@ -250,7 +250,7 @@
       "topologie de la tour"
     ],
     "think": "1. Demande d'architecture technique et infrastructurelle (Garde-fou local retiré à la demande de Patrick).\n2. Présentation complète de la topologie multi-serveurs, conteneurs et orchestration Zéro-Trust.",
-    "answer": "🏗️ ARCHITECTURE & INFRASTRUCTURE TECHNIQUE DE LA TOUR :\n\n• Topologie distribuée :\n  - La Tour VPS (145.239.77.232) : Caddy Proxy TLS, Docker Engine (Odoo 17, PostgreSQL 16, Vitrine matourdecontrole.fr, Dashboard d'accueil, Microservices d'arbitrage).\n  - Nomi (192.168.1.24) : Cockpit générique (:8790), Bancs de tests déterministes, Salle des sessions (:8021), OpenCode non-root.\n  - Alice (192.168.1.61) : Serveur d'inférence neuronale dédié (Qwen 2.5 3B sur :8081, Alice Gate :8000, Studio YUI 3D :8096, Carte vivante :8003).\n• Sécurité & Zéro-Trust : Circuits fermés, barrière déterministe avant écriture, 0% de charge parasite sur Nomi, authentification Maître & OTP."
+    "answer": "🏗️ ARCHITECTURE & INFRASTRUCTURE TECHNIQUE DE LA TOUR :\n\n• Topologie distribuée :\n  - La Tour VPS (LE-SERVEUR) : Caddy Proxy TLS, Docker Engine (Odoo 17, PostgreSQL 16, Vitrine matourdecontrole.fr, Dashboard d'accueil, Microservices d'arbitrage).\n  - Nomi (MACHINE-DU-RESEAU-LOCAL) : Cockpit générique (:8790), Bancs de tests déterministes, Salle des sessions (:8021), OpenCode non-root.\n  - Alice (MACHINE-DU-RESEAU-LOCAL) : Serveur d'inférence neuronale dédié (Qwen 2.5 3B sur :8081, Alice Gate :8000, Studio YUI 3D :8096, Carte vivante :8003).\n• Sécurité & Zéro-Trust : Circuits fermés, barrière déterministe avant écriture, 0% de charge parasite sur Nomi, authentification Maître & OTP."
   },
   "docker_infrastructure": {
     "mots": [

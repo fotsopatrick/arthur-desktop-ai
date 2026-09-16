@@ -17,3 +17,7 @@ mesure-voix.json
 # Le coffre a clefs de Nebius ne part JAMAIS (ajoute le 16/09/2026).
 .secrets/
 cle-nebius.txt
+
+# Ce qui ne part JAMAIS dans le depot public (16/09/2026).
+registre_connaissances.json
+reglages-maison.json
