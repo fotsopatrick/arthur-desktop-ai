@@ -4,3 +4,16 @@ __pycache__/
 voix-cache/
 mesure-voix.json
 *.avant-*
+
+# Les secrets ne partent JAMAIS dans un depot public.
+.cle-nebius
+.env
+*.key
+*.pem
+NEBIUS_API_KEY
+voix-cache/
+mesure-voix.json
+
+# Le coffre a clefs de Nebius ne part JAMAIS (ajoute le 16/09/2026).
+.secrets/
+cle-nebius.txt

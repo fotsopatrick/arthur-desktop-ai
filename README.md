@@ -69,7 +69,7 @@ Don't take our word for it. Every claim below is a test you can run:
 | 1 — tools | reads live state: clock, services, network | 1–10 ms |
 | 2 — rules | 233 written topics about your own domain | **0.14 ms** |
 | 3 — documents | searches what has been ingested | ~300 ms |
-| 4 — large model | asks a bigger brain, only when needed | ~2 s |
+| 4 — large model | **NVIDIA Nemotron**, hosted on **Nebius** | ~2 s |
 | — admission | when none of the four knows, **he says so** | 1 ms |
 
 No embeddings. No weights. No GPU. No API key required for layers 1 and 2.
@@ -107,6 +107,15 @@ Rules, each one learned the hard way:
   **our data** does not mean rare in **the language**. Now a procedure needs two
   matching words.
 - **Health questions.** Refused outright. This is not built for doctors.
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full diagram of the four layers
+and why they run in that order.
+
+The cloud layer uses **`nvidia/Llama-3_3-Nemotron-Super-49B-v1_5`**, served by
+**Nebius**. It is the *last* resort, never the first reflex — and questions
+about your own domain never reach it.
 
 ## Security
 

@@ -2,9 +2,16 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8"/>
-<title>Haichi Flottant — Compagnon Souverain</title>
+<title>Arthur</title>
 <style>
-  :root {
+  /* ── LES DECORS D'ARTHUR ───────────────────────────────────────────────
+     Arthur a deux habits. On en change avec le bouton palette de la barre,
+     ou en ajoutant ?theme=nebius a l'adresse.
+       « nuit »   : le ciel etoile bleu, celui d'origine ;
+       « nebius » : les couleurs de Nebius, relevees le 16/09/2026 sur leur
+                    site au pixel pres (voir ~/themes/nebius.json).
+     Le mode transparent (?fond=transparent) marche avec les deux. */
+  :root, html[data-theme="nuit"] {
     --bg-trans: rgba(8, 14, 26, 0.82);
     --border: rgba(56, 189, 248, 0.35);
     --cyan: #38bdf8;
@@ -12,6 +19,31 @@
     --gold: #f59e0b;
     --text: #f8fafc;
     --shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    --ciel-fond:
+      radial-gradient(1200px 700px at 50% 108%, #123 0%, transparent 60%),
+      linear-gradient(180deg, #02040c 0%, #060b1c 45%, #0a1030 100%);
+    --etoile: #ffffff;
+    --corps-arthur: radial-gradient(circle at 35% 35%, #38bdf8 0%, #0284c7 50%, #030712 90%);
+    --bouton-fond: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    --bouton-texte: #ffffff;
+  }
+
+  html[data-theme="nebius"] {
+    --bg-trans: rgba(5, 43, 66, 0.86);
+    --border: rgba(224, 255, 79, 0.34);
+    --cyan: #E0FF4F;          /* le citron Nebius prend la place du cyan */
+    --green: #DCFA50;
+    --gold: #51A6D9;
+    --text: #F9F9FF;
+    --shadow: 0 8px 32px rgba(0, 12, 20, 0.7);
+    --ciel-fond:
+      radial-gradient(1100px 620px at 50% 104%, rgba(224,255,79,0.17) 0%, transparent 62%),
+      linear-gradient(180deg, #000d16 0%, #001A2B 48%, #052B42 100%);
+    --etoile: #E0FF4F;
+    /* Arthur prend le citron de Nebius, avec un coeur bleu nuit. */
+    --corps-arthur: radial-gradient(circle at 35% 35%, #EEFF9A 0%, #C8E62F 46%, #052B42 92%);
+    --bouton-fond: linear-gradient(135deg, #E0FF4F 0%, #C8E62F 100%);
+    --bouton-texte: #001A2B;   /* du texte nuit sur du citron : bien lisible */
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -31,9 +63,7 @@
     position: fixed;
     inset: 0;                 /* il couvre tout l ecran */
     z-index: -1;
-    background:
-      radial-gradient(1200px 700px at 50% 108%, #123 0%, transparent 60%),
-      linear-gradient(180deg, #02040c 0%, #060b1c 45%, #0a1030 100%);
+    background: var(--ciel-fond);
   }
   #etoiles { position: fixed; inset: 0; z-index: -1; }
 
@@ -165,7 +195,7 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #0284c7 50%, #030712 90%);
+    background: var(--corps-arthur);
     border: 2px solid var(--cyan);
     box-shadow: 0 0 30px var(--cyan), inset 0 0 15px rgba(255, 255, 255, 0.6);
     display: flex;
@@ -259,15 +289,15 @@
   }
 
   .btn-send {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    color: #ffffff;
+    background: var(--bouton-fond);
+    color: var(--bouton-texte);
     border: 1px solid var(--cyan);
     border-radius: 999px;
     padding: 8px 18px;
     font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+    box-shadow: 0 0 12px var(--bord);
     transition: all 0.2s ease;
   }
 
@@ -284,16 +314,49 @@
 /* Si l adresse dit "fond=transparent", on efface le ciel : on voit alors le
    bureau derriere Haichi. Sinon, le ciel etoile reste. */
 (function(){
-  if (new URLSearchParams(location.search).get("fond") === "transparent") {
+  var reglages = new URLSearchParams(location.search);
+
+  /* Le fond transparent : on voit le bureau derriere Arthur. */
+  if (reglages.get("fond") === "transparent") {
     document.documentElement.classList.add("sans-ciel");
   }
+
+  /* Le decor : celui de l'adresse d'abord, sinon celui de la derniere fois,
+     sinon la nuit etoilee. Il est garde dans le navigateur, donc Arthur
+     rouvre avec le meme habit. */
+  var DECORS = ["nuit", "nebius"];
+  var choisi = reglages.get("theme");
+  if (DECORS.indexOf(choisi) < 0) {
+    try { choisi = localStorage.getItem("arthur-decor"); } catch (e) { choisi = null; }
+  }
+  if (DECORS.indexOf(choisi) < 0) { choisi = "nuit"; }
+  document.documentElement.setAttribute("data-theme", choisi);
+
+  window.changerDecor = function () {
+    var ici = document.documentElement.getAttribute("data-theme") || "nuit";
+    var suivant = DECORS[(DECORS.indexOf(ici) + 1) % DECORS.length];
+    document.documentElement.setAttribute("data-theme", suivant);
+    try { localStorage.setItem("arthur-decor", suivant); } catch (e) {}
+    /* Si l'adresse imposait un decor, on l'efface : sinon, au prochain
+       rechargement, l'adresse ecraserait le choix que Patrick vient de
+       faire au bouton. Son clic doit gagner. */
+    try {
+      var a = new URL(location.href);
+      if (a.searchParams.has("theme")) {
+        a.searchParams.delete("theme");
+        history.replaceState(null, "", a.pathname + a.search + a.hash);
+      }
+    } catch (e) {}
+    if (window.redessinerLesEtoiles) { window.redessinerLesEtoiles(); }
+    return suivant;
+  };
 })();
 </script>
 
   <!-- Bulle de Réponse au-dessus de la Tête d'Haichi -->
   <div class="bubble-container" id="bubble">
     <div class="speech-bubble">
-      <span class="think-tag" id="think-tag">🧠 HAICHI NANO-REASONER (&lt; 0.1 ms)</span>
+      <span class="think-tag" id="think-tag">Arthur</span>
       <div id="reply-text">Bonjour Patrick ! Je suis Haichi, ton compagnon flottant. Pose-moi une question !</div>
     </div>
   </div>
@@ -312,8 +375,9 @@
   <!-- Barre de Chat Transparente -->
   <div class="chat-bar">
     <button id="btn-voix" class="btn-voix" title="Activer ou couper la voix de Haichi">🔇</button>
-    <input type="text" class="chat-input" id="chat-input" placeholder="Parle à Haichi... (ex: qui sont les agents de la tour ?)" autocomplete="off"/>
-    <button class="btn-send" onclick="envoyer()">TRANSMETTRE ⚡</button>
+    <button id="btn-decor" class="btn-voix" title="Changer le decor : nuit etoilee ou Nebius">🎨</button>
+    <input type="text" class="chat-input" id="chat-input" placeholder="Pose ta question à Arthur…" autocomplete="off"/>
+    <button class="btn-send" onclick="envoyer()">ENVOYER</button>
   </div>
 
 <script>
@@ -340,7 +404,7 @@
     if (!prompt) return;
 
     input.value = "";
-    montrerBulle("Haichi refléchit...", "Recherche déterministe sub-milliseconde...");
+    montrerBulle("Arthur réfléchit…", "Recherche déterministe sub-milliseconde...");
 
     try {
       const res = await fetch("http://127.0.0.1:8790/api/nano-search", {
@@ -454,7 +518,7 @@
       document.getElementById("chat-input").value = questionDansAdresse;
       envoyer();
     } else {
-      montrerBulle("Salut Patrick ! Je suis Haichi. Ma barre de chat est prête !", "Initialisation réussie");
+      montrerBulle("Salut ! Je suis Arthur. Ma barre de chat est prête !", "Initialisation réussie");
     }
   }, 600);
 </script>
@@ -470,6 +534,18 @@
 
   function auHasard(min, max) { return min + Math.random() * (max - min); }
 
+  /* De quelle couleur sont les etoiles ? Cela depend du decor choisi.
+     Sous la nuit etoilee : blanches, une sur huit bleutee.
+     Sous Nebius : citron, une sur huit bleu ciel — les deux couleurs
+     relevees sur le site de Nebius. */
+  function teinteDuDecor() {
+    var decor = document.documentElement.getAttribute("data-theme");
+    if (decor === "nebius") {
+      return Math.random() < 0.12 ? "81, 166, 217" : "224, 255, 79";
+    }
+    return Math.random() < 0.12 ? "180, 220, 255" : "255, 255, 255";
+  }
+
   function fabriquerLeCiel() {
     largeur  = toile.width  = window.innerWidth;
     hauteur  = toile.height = window.innerHeight;
@@ -484,10 +560,14 @@
         eclat: auHasard(0.25, 1),
         vitesse: auHasard(0.004, 0.02),   // vitesse du clignotement
         sens: Math.random() < 0.5 ? -1 : 1,
-        teinte: Math.random() < 0.12 ? "180, 220, 255" : "255, 255, 255"
+        teinte: teinteDuDecor()
       });
     }
   }
+
+  /* Le bouton palette appelle ceci pour repeindre le ciel a la nouvelle
+     couleur, sans recharger la page. */
+  window.redessinerLesEtoiles = fabriquerLeCiel;
 
   function lancerUneFilante() {
     filantes.push({
@@ -521,7 +601,7 @@
     for (let i = filantes.length - 1; i >= 0; i--) {
       const f = filantes[i];
       const trainee = pinceau.createLinearGradient(f.x, f.y, f.x + f.longueur, f.y + f.longueur * 0.45);
-      trainee.addColorStop(0, "rgba(255,255,255," + f.vie.toFixed(2) + ")");
+      trainee.addColorStop(0, "rgba(" + teinteDuDecor() + "," + f.vie.toFixed(2) + ")");
       trainee.addColorStop(1, "rgba(255,255,255,0)");
       pinceau.strokeStyle = trainee;
       pinceau.lineWidth = 1.6;
@@ -543,6 +623,26 @@
   (function prochaineFilante() {
     setTimeout(() => { lancerUneFilante(); prochaineFilante(); }, auHasard(6000, 14000));
   })();
+})();
+</script>
+<script>
+/* Le bouton palette de la barre : un clic, Arthur change d'habit.
+   Il affiche l'habit ou il va, pas celui ou il est. */
+(function () {
+  var bouton = document.getElementById("btn-decor");
+  if (!bouton) { return; }
+  function rafraichirLeTitre() {
+    var ici = document.documentElement.getAttribute("data-theme") || "nuit";
+    bouton.title = (ici === "nebius")
+      ? "Decor Nebius — clique pour revenir a la nuit etoilee"
+      : "Nuit etoilee — clique pour passer aux couleurs de Nebius";
+    bouton.textContent = (ici === "nebius") ? "\u2726" : "\uD83C\uDFA8";
+  }
+  bouton.addEventListener("click", function () {
+    window.changerDecor();
+    rafraichirLeTitre();
+  });
+  rafraichirLeTitre();
 })();
 </script>
 </body>

@@ -19,7 +19,7 @@ from gi.repository import Gtk, Gdk, GLib
 
 COCKPIT = "http://127.0.0.1:8790"
 LARGEUR, HAUTEUR = 430, 560
-ACCUEIL = "Salut Patrick ! Je suis Haichi. Pose-moi une question."
+ACCUEIL = "Salut Patrick ! Je suis Arthur. Pose-moi une question."
 
 FEUILLE_DE_STYLE = b"""
 window { background-color: transparent; }
@@ -67,7 +67,7 @@ entry selection { background-color: rgba(56,189,248,.45); }
 
 class Haichi(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Haichi-Avatar")
+        super().__init__(title="Arthur-Avatar")
         self.set_default_size(LARGEUR, HAUTEUR)
         self.set_decorated(False)          # aucune barre de titre
         self.set_keep_above(True)          # toujours devant
@@ -149,7 +149,7 @@ class Haichi(Gtk.Window):
         self.bouton_voix.get_style_context().add_class("voix")
         self.bouton_voix.connect("clicked", self._basculer_voix)
         self.saisie = Gtk.Entry()
-        self.saisie.set_placeholder_text("Parle à Haichi…")
+        self.saisie.set_placeholder_text("Pose ta question à Arthur…")
         self.saisie.connect("activate", lambda *_: self.envoyer())
         envoyer = Gtk.Button(label="ENVOYER")
         envoyer.get_style_context().add_class("envoyer")

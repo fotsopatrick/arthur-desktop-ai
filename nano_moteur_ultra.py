@@ -24,6 +24,14 @@ try:
 except Exception:
     haichi_outils = None
 
+# Le gros cerveau du concours : Nemotron, de NVIDIA, heberge chez Nebius.
+# Il remplace Qwen QUAND SA CLE EST LA. Sinon Arthur garde Qwen, sur Alice.
+# Aucune des deux n'est obligatoire : sans aucune, Arthur avoue, et c'est tout.
+try:
+    import nemotron_nebius
+except Exception:
+    nemotron_nebius = None
+
 ICI = os.path.dirname(os.path.abspath(__file__))
 REGISTRE_PATH = os.path.join(ICI, "registre_connaissances.json")
 
@@ -50,6 +58,26 @@ MOTS_VIDES = {
     "annee", "annees", "jour", "jours", "temps", "gens", "personne", "personnes",
     "premier", "premiere", "dernier", "derniere", "autre", "autres", "meme",
 }
+
+# ── LES MOTS DE CONSIGNE ─────────────────────────────────────────────────────
+# Ne le 16/09/2026. A « explique en une phrase ce qu'est un transistor »,
+# Arthur sortait un circuit sur l'accueil des nouveaux. Pourquoi : « explique »
+# et « phrase » se trouvent dans des circuits. Deux mots touches, c'est assez
+# pour qu'un circuit gagne — et il gagnait.
+#
+# Or ces mots ne disent pas DE QUOI on parle, ils disent COMMENT repondre.
+# « explique en une phrase » et « explique en trois lignes » parlent du meme
+# sujet. Ils ne doivent donc jamais servir a choisir la reponse.
+MOTS_DE_CONSIGNE = {
+    "explique", "expliques", "expliquer", "explication",
+    "resume", "resumes", "resumer", "decris", "decrire", "detaille",
+    "raconte", "raconter", "dis", "dire", "redige", "rediger", "ecris",
+    "phrase", "phrases", "ligne", "lignes", "mot", "mots",
+    "court", "courte", "bref", "brievement", "simplement", "clairement",
+    "vite", "rapidement", "exemple", "exemples",
+}
+MOTS_VIDES |= MOTS_DE_CONSIGNE
+
 
 # Les sujets de base. Ils GAGNENT sur le registre : si le registre contient
 # deja un sujet du meme nom, on garde la reponse d'ici et on ajoute ses mots.
@@ -387,7 +415,16 @@ class NanoMoteurUltraEngine:
                         raison + f" — {combien} document(s) trouve(s), lus avant de repondre.",
                         reponse, "documents", 0.0, t0, source="documents")
 
-            # ETAGE 3 : le gros cerveau, tout seul.
+            # ETAGE 3 : le gros cerveau. Nemotron chez Nebius s'il a sa cle,
+            # Qwen sur Alice sinon. Le concours exige Nemotron ; la maison
+            # continue de marcher sans lui.
+            if nemotron_nebius is not None and nemotron_nebius.est_pret():
+                d = nemotron_nebius.demander(prompt)
+                if d.get("reponse"):
+                    return self._sortie(
+                        True, raison + " — passe a Nemotron, chez Nebius.",
+                        d["reponse"], "nemotron", 0.0, t0, source="nemotron")
+
             reponse, panne = self.demander_a_alice(prompt)
             if reponse:
                 return self._sortie(True, raison + " — passé à Qwen sur Alice.",

@@ -1,0 +1,21 @@
+{
+  "nom": "whatsapp",
+  "titre": "Envoyer un message WhatsApp",
+  "auteur": "la tour de controle",
+  "allume": false,
+  "mots": [
+    "envoie un message whatsapp",
+    "envoyer un whatsapp",
+    "envoie un whatsapp",
+    "previens sur whatsapp",
+    "ecris sur whatsapp",
+    "message whatsapp a"
+  ],
+  "reglages": {
+    "mode": "essai",
+    "numero": "",
+    "jeton": "",
+    "identifiant_expediteur": ""
+  },
+  "aide": "mode essai = il montre le message sans l envoyer. mode vrai = il envoie pour de bon, et il lui faut alors le numero, le jeton et l identifiant d expediteur donnes par Meta."
+}
