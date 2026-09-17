@@ -1,3 +1,8 @@
+# --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
+# Signature: nominomi
+# B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
+# HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -33,7 +38,31 @@ except Exception:
     nemotron_nebius = None
 
 ICI = os.path.dirname(os.path.abspath(__file__))
-REGISTRE_PATH = os.path.join(ICI, "registre_connaissances.json")
+# OU ARTHUR TROUVE SON SAVOIR — repare le 17/09/2026.
+#
+# LE DEFAUT. Le moteur ne cherchait QUE « registre_connaissances.json ». Or ce
+# fichier n'est pas publie : c'est le savoir de travail de Patrick. Le depot
+# public, lui, contient « registre_exemple.json » avec ses 233 sujets. Un
+# inconnu telechargeait donc 233 sujets... et Arthur n'en voyait AUCUN. Il
+# tombait a trois reponses de base, alors que le mode d'emploi promettait 233.
+#
+# LA REPARATION. On cherche dans l'ordre, et on prend le premier qui repond.
+# On ne devine plus UN seul nom : un programme qui ne connait qu'un chemin se
+# tait des qu'on le deplace ou qu'on le partage.
+_NOMS_DU_SAVOIR = ("registre_connaissances.json",   # le savoir de travail
+                   "registre_exemple.json")          # le savoir publie, en repli
+
+
+def _trouver_le_savoir():
+    """Le premier fichier de savoir qui existe. None si aucun."""
+    for nom in _NOMS_DU_SAVOIR:
+        chemin = os.path.join(ICI, nom)
+        if os.path.exists(chemin):
+            return chemin
+    return None
+
+
+REGISTRE_PATH = _trouver_le_savoir() or os.path.join(ICI, _NOMS_DU_SAVOIR[0])
 
 # Les mots qui ne designent aucun sujet : ils ne doivent jamais faire pencher
 # la balance ("la", "de", "comment"...).
@@ -76,7 +105,34 @@ MOTS_DE_CONSIGNE = {
     "court", "courte", "bref", "brievement", "simplement", "clairement",
     "vite", "rapidement", "exemple", "exemples",
 }
+# LES MOTS DE POLITESSE — ajoutes le 17/09/2026.
+#
+# Patrick : « Arthur dit automatiquement salut, meme si mon premier message a
+# une demande il l ignore dans sa premiere reponse ».
+#
+# Mesure avant la reparation, sur la MEME question :
+#   « quelle est la capitale de la Mongolie ? »        -> Oulan-Bator
+#   « salut, quelle est la capitale de la Mongolie ? » -> « Je ne sais pas »
+#
+# Le mot « salut » trainait la question vers les documents, qui n avaient
+# rien, et Arthur s arretait la — il ne montait plus au grand modele.
+#
+# C est exactement la faute d « explique en une phrase » : ces mots ne disent
+# pas DE QUOI on parle, ils disent A QUI on parle. Trente-trois mots de
+# consigne avaient deja ete retires ; la politesse avait ete oubliee.
+#
+# ATTENTION AU DEUXIEME DEVOIR : un bonjour TOUT SEUL doit rester un bonjour.
+# Ces mots sont ignores pour CHOISIR la reponse ; ils ne sont pas effaces de
+# la phrase. L epreuve verifie les deux.
+MOTS_DE_POLITESSE = {
+    "salut", "bonjour", "bonsoir", "coucou", "hello", "hi", "hey", "yo",
+    "wesh", "salutations", "merci", "stp", "svp", "please",
+    "peux", "peut", "pourrais", "pourrait", "voudrais", "voudrait",
+    "aurais", "serait", "veux", "veuillez", "priere",
+    "bonne", "journee", "soiree", "cordialement", "amicalement",
+}
 MOTS_VIDES |= MOTS_DE_CONSIGNE
+# La politesse N EST PAS ajoutee ici : voir _sans_la_politesse.
 
 
 # Les sujets de base. Ils GAGNENT sur le registre : si le registre contient
@@ -261,6 +317,33 @@ class NanoMoteurUltraEngine:
         t = re.sub(r"[^\w\s]", " ", t)
         return " ".join(t.split())
 
+    # Les signes qui font qu une phrase est une demande, et pas juste des
+    # mots poses la. Nes le 17/09/2026 : voir plus bas, « xyzzy blurp ».
+    SIGNES_DE_QUESTION = (
+        "qui", "que", "quoi", "quel", "quelle", "quels", "quelles",
+        "comment", "pourquoi", "combien", "ou", "quand", "est-ce",
+        "explique", "dis", "dit", "donne", "montre", "fais", "cherche",
+        "trouve", "calcule", "liste", "raconte", "resume", "verifie",
+        "peux", "peut", "sais", "sait", "veux", "faut", "aide",
+        # LES DEMANDES POLIES, ajoutees le 17/09/2026.
+        # « bonjour, merci de me dire la capitale de la Mongolie » n a pas de
+        # point d interrogation. Arthur repondait donc « aucune question : je
+        # ne devine pas ». Or c EST une demande — elle est juste polie.
+        # Il connaissait « dis » mais pas « dire ». Une porte qui refuse une
+        # question bien posee ne garde rien : elle empeche de parler.
+        "dire", "indique", "indiquer", "precise", "preciser",
+        "rappelle", "rappeler", "pourrais", "pourrait", "voudrais",
+        "voudrait", "aimerais", "aimerait", "souhaite", "souhaiterais",
+        "besoin", "envoie", "envoyer", "ecris", "ecrire")
+
+    def _est_une_question(self, prompt):
+        """Rend True si c est une vraie demande, pas juste des mots poses."""
+        t = str(prompt or "")
+        if "?" in t:
+            return True
+        mots = set(self.normaliser(t).split())
+        return bool(mots & set(self.SIGNES_DE_QUESTION))
+
     def mots_longs_inconnus(self, prompt_norm):
         """Les mots importants de la question qu'Haichi n'a jamais vus.
         Deux ou plus, et il ne sait pas de quoi on lui parle."""
@@ -331,9 +414,31 @@ class NanoMoteurUltraEngine:
             return None, str(e)[:120]
 
     # --- la reponse ---------------------------------------------------------
+    def _sans_la_politesse(self, phrase_norm):
+        """Enleve « salut », « bonjour », « merci »… — mais SEULEMENT s il
+        reste une vraie demande derriere.
+
+        LES DEUX DEVOIRS, et la faute qui les a appris (17/09/2026).
+
+        Devoir 1 : « salut, quelle est la capitale de la Mongolie ? » doit
+        rendre Oulan-Bator. Avant, le mot « salut » trainait la question vers
+        les documents, qui n avaient rien, et Arthur s arretait la.
+
+        Devoir 2 : « salut » TOUT SEUL doit rester un bonjour. Premier jet du
+        meme jour : j avais mis la politesse dans la liste des mots ignores,
+        et Arthur ne savait plus dire bonjour. J avais repare un devoir en
+        cassant l autre.
+
+        La regle juste : on enleve la politesse seulement s il reste des mots
+        apres. Si la phrase n est QUE de la politesse, on n y touche pas."""
+        mots = phrase_norm.split()
+        reste = [m for m in mots if m not in MOTS_DE_POLITESSE]
+        return " ".join(reste) if reste else phrase_norm
+
     def repondre(self, prompt: str) -> dict:
         t0 = time.perf_counter_ns()
         prompt_norm = self.normaliser(prompt)
+        prompt_norm = self._sans_la_politesse(prompt_norm)
 
         if not prompt_norm:
             return self._sortie(False, "Recherche vide.", "Pose-moi une question.", None, 0.0, t0)
@@ -408,6 +513,28 @@ class NanoMoteurUltraEngine:
                 return self._sortie(False, "Question de santé : hors de mon domaine.",
                                     REFUS_SANTE, None, 0.0, t0, source="aveu")
 
+            # DES MOTS INCONNUS, SANS QUESTION : ON AVOUE (17/09/2026).
+            #
+            # Patrick a tape « xyzzy blurp » — deux mots inventes, sans
+            # question. Arthur a repondu en jouant son personnage :
+            # « *clignote de ses yeux luminescents* Xyzzy ? Vraiment ?... »
+            #
+            # Avec une VRAIE question autour du meme mot, il avouait
+            # correctement. Le defaut n etait donc pas l aveu : c est que son
+            # personnage prend le dessus quand il n y a rien a repondre.
+            #
+            # Un agent qui joue un role au lieu de dire « je n ai pas
+            # compris » fait perdre du temps, et fait douter de tout le reste.
+            if not self._est_une_question(prompt) and len(inconnus) >= 2:
+                return self._sortie(
+                    False,
+                    "Des mots que je ne connais pas, et aucune question : "
+                    "je ne devine pas.",
+                    "Je ne sais pas : je n'ai pas compris ta demande. Ces mots me "
+                    "sont inconnus : " + ", ".join(inconnus[:4]) + ". Pose-moi une "
+                    "question et je chercherai.",
+                    None, 0.0, t0, source="aveu")
+
             # La question parle-t-elle de la maison ? Alors on n'ennuie pas
             # Alice : elle inventerait. On avoue.
             mots = set(prompt_norm.split())
@@ -433,10 +560,31 @@ class NanoMoteurUltraEngine:
                         raison + f" — {combien} document(s) trouve(s), lus avant de repondre.",
                         reponse, "documents", 0.0, t0, source="documents")
 
-            # ETAGE 3 : le gros cerveau. Nemotron chez Nebius s'il a sa cle,
-            # Qwen sur Alice sinon. Le concours exige Nemotron ; la maison
-            # continue de marcher sans lui.
-            if nemotron_nebius is not None and nemotron_nebius.est_pret():
+            # CHARABIA / HORS-SUJET TOTAL : aucun mot connu, aucun document.
+            # On n'envoie pas ça au gros cerveau — il inventerait une pirouette
+            # (« xyzzy blurp » -> une vanne au lieu d'un aveu). On se tait.
+            # (16/09/2026, banc test_haichi_repond_juste : xyzzy blurp.)
+            # AJOUT DU 17/09/2026 : « et ce n est pas une question ».
+            # La regle d hier etait juste, mais trop large : elle attrapait
+            # aussi « Quelle est la capitale du Cameroun ? », qu Arthur ne
+            # connait pas dans ses regles ecrites mais qu un gros cerveau sait.
+            # Mesure : trois essais de suite, il avouait au lieu de repondre
+            # Yaounde. Une vraie question merite qu on monte au gros cerveau ;
+            # des mots poses la, non.
+            if not scores and not self._est_une_question(prompt):
+                return self._sortie(
+                    False, raison + " Aucun mot connu, aucun document : on n'invente pas.",
+                    "Je ne sais pas répondre avec certitude : je n'ai rien reconnu "
+                    "dans ta question.", None, 0.0, t0, source="aveu")
+
+            # ETAGE 3 : le gros cerveau. CHOIX de Patrick, dans
+            # reglages-maison.json -> "cerveau_gros" :
+            #   "nebius" -> Nemotron (NVIDIA), chez Nebius (celui du concours) ;
+            #   "qwen"   -> Qwen, sur Alice, à la maison (gratuit).
+            # Le cockpit peut changer ce réglage. Par défaut : nebius.
+            choix = _reglage_maison("cerveau_gros", "nebius")
+            if (choix == "nebius" and nemotron_nebius is not None
+                    and nemotron_nebius.est_pret()):
                 d = nemotron_nebius.demander(prompt)
                 if d.get("reponse"):
                     return self._sortie(
