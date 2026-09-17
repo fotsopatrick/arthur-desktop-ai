@@ -32,6 +32,12 @@ for question, attendu in [
     ("2.5 fois 4",                       "2.5 fois 4 = 10"),
     ("2,5 plus 1,5",                     "2.5 plus 1.5 = 4"),
     ("multiplie 12 par 12",              "12 fois 12 = 144"),
+    # Le 16/09/2026 : « multiplié » avec son accent rendait None. Arthur
+    # savait compter, mais seulement si on ecrivait mal. Patrick, lui,
+    # ecrit avec les accents.
+    ("Combien font 17 multiplié par 4 ?", "17 fois 4 = 68"),
+    ("144 divisé par 12",                "144 divise par 12 = 12"),
+    ("15 enlève 6",                      "15 moins 6 = 9"),
     ("144 divise par 12",                "144 divise par 12 = 12"),
 ]:
     juge(question, attendu, H.outil_calcul(question))

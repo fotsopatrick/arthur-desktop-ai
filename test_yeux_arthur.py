@@ -50,8 +50,10 @@ juge("il donne la place sur le disque", lambda t: t, "Disque :" in sante)
 juge("il regarde les portes du site", lambda t: t, "Les portes du site" in sante)
 juge("il tranche : ca va ou ca ne va pas",
      lambda t: t, ("Tout va bien" in sante) or ("Ca ne va PAS" in sante))
-juge("il VOIT que l'accueil de la tour est introuvable",
-     lambda t: t, "INTROUVABLE" in sante)
+juge("il dit que l'accueil est retire, sans crier a la panne",
+     lambda t: t, "retiree expres" in sante)
+juge("cette page retiree ne compte pas comme un ennui",
+     lambda t: t, "l'accueil de la tour : INTROUVABLE" not in sante)
 
 print("\n4) IL DIT QUAND IL NE VOIT PAS — on casse expres")
 vrai_ssh = T._SSH[:]

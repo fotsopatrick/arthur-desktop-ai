@@ -33,9 +33,16 @@ CAS = [
     ("Qu est ce que le circuit Zorglub de la tour ?",             "aveu-maison", AVEUX),
     ("Qui est l agent Pterodactyle de la tour ?",                 "aveu-maison", AVEUX),
     ("Quelle est la couleur officielle du protocole Wibble ?",    "aveu", AVEUX),
-    ("Quelle est la capitale du Cameroun ?",      "alice",  ["yaound"]),
-    ("Combien font 17 multiplie par 4 ?",         "alice",  ["68"]),
-    ("Quel est le plus grand ocean du monde ?",   "alice",  ["pacifique"]),
+    # Le 16/09/2026 : ces epreuves exigeaient « alice ». Elles figeaient un
+    # ordre qui a change pour le concours NVIDIA/Nebius — Nemotron passe
+    # AVANT Qwen, Qwen reste le filet quand Nemotron n'a pas sa clef. Les
+    # deux sont donc justes. Ce qui compte n'est pas QUI a parle, mais que
+    # la reponse soit bonne et qu'elle vienne d'un gros cerveau, pas d'une
+    # invention. On ecrit les deux etages acceptables, separes par « | ».
+    ("Quelle est la capitale du Cameroun ?", "nemotron|alice",  ["yaound"]),
+    # Celle-ci ne doit monter chez PERSONNE : Arthur sait compter tout seul.
+    ("Combien font 17 multiplie par 4 ?",    "outil",           ["68"]),
+    ("Quel est le plus grand ocean du monde ?", "nemotron|alice", ["pacifique"]),
 ]
 
 def demander(q):
@@ -64,7 +71,7 @@ for question, qui_doit_parler, attendus in CAS:
         bon_qui = True
     else:
         bon_texte = any(sans_accent(a) in bas for a in attendus)
-        bon_qui = (source == qui_doit_parler)
+        bon_qui = source in qui_doit_parler.split("|")
 
     # Haichi doit rester rapide quand c'est lui qui repond
     bon_vitesse = (duree < 1.0) if qui_doit_parler in ("haichi", "aveu-maison") else True

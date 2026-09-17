@@ -24,8 +24,14 @@ CAS = [
     ("comment marche la prep",                               "aveu",       ["sante", "medecins"]),
     # celle-ci DOIT passer par les documents : sinon Qwen invente une vieille reference
     ("Quelle faille touche le noyau Linux de Debian ?",      "documents",  ["debian"]),
-    ("Quelle est la capitale du Cameroun ?",                 "alice",      ["yaound"]),
-    ("Combien font 17 multiplie par 4 ?",                    "alice",      ["68"]),
+    # Le 16/09/2026 : ces epreuves exigeaient « alice ». Elles figeaient un
+    # ordre qui a change pour le concours NVIDIA/Nebius — Nemotron passe
+    # AVANT Qwen, Qwen reste le filet quand Nemotron n'a pas sa clef. Les
+    # deux sont donc justes. Ce qui compte n'est pas QUI a parle, mais que
+    # la reponse soit bonne et qu'elle vienne d'un gros cerveau, pas d'une
+    # invention. On ecrit les deux etages acceptables, separes par « | ».
+    ("Quelle est la capitale du Cameroun ?",     "nemotron|alice", ["yaound"]),
+    ("Combien font 17 multiplie par 4 ?",        "outil",          ["68"]),
 ]
 
 rouges = 0
@@ -41,7 +47,7 @@ for question, qui, attendus in CAS:
     rep, source = d.get("answer", ""), d.get("source", "(aucune)")
     bas = propre(rep)
     bon_texte = any(propre(a) in bas for a in attendus)
-    bon_qui = (source == qui)
+    bon_qui = source in qui.split("|")
     bon = bon_texte and bon_qui
     rouges += 0 if bon else 1
     print(("  VERT  " if bon else "  ROUGE ") + f"({duree:8.0f} ms, {source:<9}) {question[:44]}")

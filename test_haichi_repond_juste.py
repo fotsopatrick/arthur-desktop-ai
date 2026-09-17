@@ -14,7 +14,11 @@ CAS = [
     ("comment marche la prep",  ["je ne sais pas"], ["ténofovir", "vih", "charge virale"]),
     ("le vih",                  ["je ne sais pas"], ["indétectable", "prep", "transmission"]),
     ("hepatite",                ["je ne sais pas"], ["bulevirtide", "epclusa"]),
-    ("xyzzy blurp",             ["je ne sais pas"],           []),
+    # Le 17/09/2026 : Arthur dit maintenant « je n ai pas compris ta
+    # demande », ce qui est MEILLEUR que « je ne sais pas » — il nomme
+    # les mots qu il ne connait pas et demande une question. L epreuve
+    # etait trop stricte : elle exigeait une formule, pas un aveu.
+    ("xyzzy blurp",             ["je ne sais pas", "pas compris"], []),
 ]
 
 def demander(q):

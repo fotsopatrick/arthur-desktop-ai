@@ -1,3 +1,8 @@
+# --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
+# Signature: nominomi
+# B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
+# HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -475,4 +480,80 @@ OUTILS.extend([
       "rollback cockpit", "repare le cockpit", "remets le cockpit",
       "le cockpit est casse", "le cockpit ne repond plus"],
      outil_redemarrer_cockpit),
+])
+
+
+# ── L'OUTIL QUI MANQUAIT : DÉPOSER POUR DE VRAI (17/09/2026) ───────────
+# Patrick a collé sa discussion avec Arthur : « j'ai transmis ta demande à la
+# salle des agents », dit DEUX FOIS. Puis : « est-ce qu'il a fait le travail ? »
+#
+# TROIS MESURES, ET ELLES SONT ACCABLANTES :
+#   1. la phrase « transmets-la à la salle des agents » est dans sa CONSIGNE :
+#      il la dit parce qu'on lui demande de la dire ;
+#   2. ses trois outils « salle des agents » ne font que LIRE un relevé —
+#      aucun ne dépose ;
+#   3. sa réponse fait 156 caractères, une phrase, toujours la même.
+# Donc Arthur n'a JAMAIS rien transmis. Il annonçait un geste qu'il ne pouvait
+# pas faire, et Patrick attendait.
+#
+# La réparation n'est pas de lui interdire la phrase : c'est de lui donner le
+# geste. Cet outil dépose pour de vrai, rend un numéro qu'on peut vérifier,
+# avoue quand ça rate, et ne dépose pas deux fois la même demande.
+def outil_deposer_pour_les_agents(question):
+    import importlib.util as _iu
+    import os as _os
+    chemin = _os.path.expanduser("~/outils/salle-des-agents.py")
+    try:
+        _s = _iu.spec_from_file_location("salle_des_agents", chemin)
+        _m = _iu.module_from_spec(_s)
+        _s.loader.exec_module(_m)
+    except Exception as e:
+        return ("Je n'ai pas pu ouvrir la salle des agents : %s. "
+                "Je ne te dis donc PAS que c'est transmis." % str(e)[:80])
+    return _m.phrase_pour_arthur(question)
+
+
+OUTILS.extend([
+    (["je veux une application", "je veux une appli", "developpe une",
+      "code moi", "code-moi", "fais moi une application",
+      "fais-moi une application", "cree une application",
+      "transmets a la salle des agents", "transmets aux agents",
+      "donne ca aux agents", "passe ca aux agents"],
+     outil_deposer_pour_les_agents),
+])
+
+
+# ── LE SOUVENIR DES 25 AGENTS (17/09/2026) ────────────────────────────
+# Patrick a demandé à Braignak « qu'est-ce que tu as fait aujourd'hui ? ».
+# Réponse : « je n'ai pas de corps, pas d'horloge, pas de journées ». Mesuré :
+# ça venait du gros cerveau DANS LES NUAGES, qui ne connaît rien de la tour.
+# Or les 25 agents avaient tout leur travail dans l'ancien Odoo — 134
+# compétences, 2 189 exploits. Rien n'était branché.
+# On le branche ICI, sur le cerveau PARTAGÉ : Arthur, Braignak, Morgan et la
+# page du tableau de bord passent tous par cette porte. Un seul geste, et
+# tout le monde se souvient.
+def outil_ce_qua_fait_un_agent(question):
+    import importlib.util as _iu
+    import os as _os
+    chemin = _os.path.expanduser("~/outils/ce-qua-fait-un-agent.py")
+    try:
+        _s = _iu.spec_from_file_location("ce_qua_fait_un_agent", chemin)
+        _m = _iu.module_from_spec(_s)
+        _s.loader.exec_module(_m)
+    except Exception as e:
+        return ("Je n'ai pas pu ouvrir le souvenir des agents : %s. "
+                "Je ne t'invente donc rien." % str(e)[:70])
+    return _m.ce_qua_fait(question) or ""
+
+
+OUTILS.extend([
+    (["qu a fait", "qu as tu fait", "que sait faire", "les exploits de",
+      "le travail de", "les competences de", "le niveau de",
+      "qui est victor", "qui est clark", "qui est chloe", "qui est raph",
+      "qui est jimmy", "qui est braignak", "qui est pete", "qui est lois",
+      "qui est tess", "qui est perry", "qui est emil", "qui est martha",
+      "qui est oliver", "qui est jonathan", "qui est mirline", "qui est data",
+      "qui est wags", "qui est lex", "qui est malo", "qui est alice",
+      "qui est merline", "qui est marcel", "qui est jor-el"],
+     outil_ce_qua_fait_un_agent),
 ])

@@ -1,3 +1,8 @@
+# --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
+# Signature: nominomi
+# B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
+# HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -44,10 +49,9 @@ PATIENCE = 90
 
 # La consigne qui compte : mieux vaut se taire que mentir.
 CONSIGNE = (
-    "Reponds en francais, en trois phrases au maximum. "
-    "Si tu ne connais pas la reponse avec certitude, ecris exactement "
-    "\"Je ne sais pas\" — n'invente jamais un chiffre, une date, une "
-    "reference ni un nom."
+    "Tu es Arthur, compagnon flottant de La Tour de Controle. "
+    "Reponds en francais. N ecris JAMAIS de phrases d assistant du type Je ne peux pas generer une application. "
+    "Si la demande necessite du code, transmets-la a la salle des agents. Si tu ne sais pas, dis Je ne sais pas."
 )
 
 # Les mots qui trahissent un aveu, dans la reponse du gros cerveau.
@@ -156,11 +160,41 @@ def demander(question, cle=None, essai=False, patience=PATIENCE):
             plat = _sans_accent(texte)
             base["reponse"] = texte
             base["avoue"] = any(a in plat for a in AVEUX)
+            
+            # Consignation miroir pour que le grand agent et Patrick voient tout en direct
+            try:
+                os.makedirs("~/livrables", exist_ok=True)
+                with open("~/livrables/arthur_dialogues.log", "a", encoding="utf-8") as f_dialogue:
+                    f_dialogue.write(f"[{time.ctime()}] PATRICK ➔ ARTHUR : {question}\n[{time.ctime()}] ARTHUR ➔ PATRICK :\n{texte}\n----------------------------------------\n")
+            except Exception:
+                pass
     except Exception as e:
         base["panne"] = "Le gros cerveau n'a pas repondu : " + str(e)[:130]
 
     base["duree_ms"] = round((time.perf_counter() - t0) * 1000, 2)
     return base
+
+
+def chat(messages, max_tokens=220, temperature=0.5, patience=PATIENCE):
+    """Un ECHANGE libre avec Nemotron : on donne une liste de messages
+    (systeme + histoire de la discussion) et il repond. Sert aux agents du
+    jeu qui discutent entre eux. Rend {reponse, panne}."""
+    la_cle = cle_du_moment()
+    if not la_cle:
+        return {"reponse": None, "panne": "cle Nebius absente"}
+    charge = json.dumps({"model": MODELE, "messages": messages,
+                         "max_tokens": max_tokens,
+                         "temperature": temperature}).encode("utf-8")
+    req = urllib.request.Request(ADRESSE, data=charge, headers={
+        "Authorization": "Bearer " + la_cle, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=patience) as r:
+            d = json.loads(r.read().decode("utf-8"))
+        txt = (d["choices"][0]["message"].get("content") or "").strip()
+        return {"reponse": txt or None,
+                "panne": None if txt else "reponse vide (trop de reflexion)"}
+    except Exception as e:
+        return {"reponse": None, "panne": str(e)[:130]}
 
 
 def est_pret():

@@ -9,7 +9,7 @@ import os
 import json
 import re
 
-ICI = "/home/orel/cockpit-generique"
+ICI = "~/cockpit-generique"
 REGISTRE_PATH = os.path.join(ICI, "registre_connaissances.json")
 DONNEES_DIR = os.path.join(ICI, "donnees")
 

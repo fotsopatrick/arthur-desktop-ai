@@ -1,0 +1,68 @@
+{
+ "sante_prep_indetectable": {
+  "mots": [
+   "prep",
+   "tpe",
+   "indetectable",
+   "intransmissible",
+   "i=i",
+   "vih",
+   "traitement",
+   "transmission"
+  ],
+  "think": "1. Synthèse médicale validée : PrEP, TPE, règle I=I (Indétectable = Intransmissible).\n2. Protocoles officiels OMS / Santé Publique France.",
+  "answer": "Rappels essentiels de santé publique :\n• La PrEP (Ténofovir + Emtricitabine) protège préventivement contre le VIH à plus de 99%.\n• I = I (Indétectable = Intransmissible) : une personne sous traitement efficace avec charge virale indétectable ne transmet JAMAIS le virus.\n• TPE : Traitement post-exposition d'urgence à initier dans les 48h (idéalement 4h)."
+ },
+ "labo_vih_docking": {
+  "mots": [
+   "docking",
+   "gp120",
+   "1g9m",
+   "anrs",
+   "inserm",
+   "cd4",
+   "maraviroc",
+   "affinite",
+   "liaison",
+   "structure pdb"
+  ],
+  "think": "1. Analyse de la modélisation moléculaire gp120 / 1G9M.\n2. Résumé des résultats de docking et d'inhibition de l'entrée virale (ANRS/INSERM).\n3. Score d'affinité ΔG = -9.2 kcal/mol et blocage stérique CD4.",
+  "answer": "Le laboratoire médical 3D de la Tour modélise l'inhibition du complexe gp120 (PDB 1G9M) - CD4. Nos simulations d'arrimage déterministe démontrent une énergie libre de liaison ΔG = -9.2 kcal/mol, confirmant le blocage stérique de l'entrée virale par les inhibiteurs allostériques."
+ },
+ "test_dynamique_hepatite_delta": {
+  "mots": [
+   "hepatite delta",
+   "hdv",
+   "bulevirtide",
+   "heprcludex"
+  ],
+  "think": "1. Détection de la règle dynamique Hépatite Delta.\n2. Ingestion à chaud validée sans re-compilation.",
+  "answer": "L'Hépatite Delta (HDV) est un virus défectif nécessitant l'AgHBs du VHB pour son enveloppe. Le Bulévirtide bloque l'entrée virale via le récepteur NTCP."
+ },
+ "hepatite_c_epclusa": {
+  "mots": [
+   "hepatite c",
+   "epclusa",
+   "sofosbuvir",
+   "velpatasvir",
+   "vhc"
+  ],
+  "think": "1. Détection de la règle dynamique Hépatite C (Epclusa).\n2. Validation du hot-reloading sans redémarrage.",
+  "answer": "Le traitement de l'Hépatite C pan-génotypique repose sur l'association Sofosbuvir / Velpatasvir (Epclusa) pendant 12 semaines avec un taux de guérison virologique > 95%."
+ },
+ "mode_it_secret": {
+  "mots": [
+   "cle",
+   "clef",
+   "secret",
+   "kaigan",
+   "byakugan",
+   "mode it",
+   "jargon",
+   "vocabulaire",
+   "enigme"
+  ],
+  "think": "1. Déclencheur du secret / énigme 'Kaigan' (ouverture des yeux / mode IT de la vitrine).\n2. Révéler la clé permettant de basculer le vocabulaire de la vitrine en termes informatiques réels.",
+  "answer": "Bravo, tu as trouvé ! 🔑 開眼 — kaigan : « l'ouverture des yeux ».\n\nLe mode IT est déverrouillé. Il remplace les métaphores de la maison par le jargon technique direct (ex: 'Carte vivante' -> 'Graphe d'observabilité temps-réel'). Un bouton 'Mode : simple' t'attend en bas des articles pour basculer !"
+ }
+}

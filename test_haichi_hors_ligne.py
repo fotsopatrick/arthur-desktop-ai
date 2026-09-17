@@ -9,7 +9,7 @@ verifie que Haichi :
   3. ne fait pas patienter plus de quelques secondes.
 """
 import time, sys, unicodedata
-sys.path.insert(0, "/home/orel/cockpit-generique")
+sys.path.insert(0, "~/cockpit-generique")
 import nano_moteur_ultra as moteur
 
 # On coupe le fil : ces deux adresses ne menent nulle part.
@@ -17,6 +17,12 @@ moteur.ALICE_URL = "http://10.255.255.1:9/v1/chat/completions"
 moteur.DOCUMENTS_URL = "http://10.255.255.1:9/api/v1/knowledge?q="
 moteur.ALICE_PATIENCE = 4          # on n attend pas 90 secondes dans le vide
 moteur.DOCUMENTS_PATIENCE = 3
+
+# Le 16/09/2026 : ce test coupait DEUX chemins et se disait « hors ligne ».
+# Un troisieme avait ete ouvert entre-temps — Nemotron, chez Nebius, qui sort
+# par le meme wifi. Le test passait au vert en etant en ligne. Un controle
+# qui ne coupe pas tout ne prouve rien : on coupe aussi celui-la.
+moteur.nemotron_nebius = None
 
 def propre(t):
     t = unicodedata.normalize("NFD", (t or "").lower())

@@ -1,3 +1,8 @@
+# --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
+# Signature: nominomi
+# B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
+# HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -17,8 +22,13 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
+# HAICHI / ARTHUR — Nom de code : nominomi
+SIGNATURE_NOMINOMI = "nominomi"
+
 COCKPIT = "http://127.0.0.1:8790"
-LARGEUR, HAUTEUR = 430, 560
+LARGEUR, HAUTEUR = 300, 380   # retreci le 17/09/2026 :
+# Patrick : « diminue aussi leur taille, ils sont trop grands ».
+# 430x560 mangeait un quart de son ecran pour un compagnon.
 ACCUEIL = "Salut Patrick ! Je suis Arthur. Pose-moi une question."
 
 FEUILLE_DE_STYLE = b"""
@@ -29,7 +39,7 @@ window { background-color: transparent; }
   background-color: rgba(10, 16, 28, 0.94);
   border: 1.5px solid rgba(56, 189, 248, 0.75);
   border-radius: 18px;
-  padding: 14px 16px;
+  padding: 9px 11px;
 }
 .bulle > * { background-color: transparent; }
 .bulle scrollbar { background: transparent; }
@@ -67,12 +77,30 @@ entry selection { background-color: rgba(56,189,248,.45); }
 
 class Haichi(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Arthur-Avatar")
+        # Le 17/09/2026 : cette ligne manquait. Sans elle, la fenetre n est
+        # pas construite, et lui donner un titre plante aussitot :
+        #   RuntimeError: object of type Haichi is not initialized
+        # Arthur ne demarrait donc plus du tout, et son bouton « Rallumer »
+        # disait « il revient » sans que rien ne revienne.
+        super().__init__()
+        self.set_title("Arthur-Avatar")
+        self.set_keep_above(True)
+        self.set_accept_focus(True)
         self.set_default_size(LARGEUR, HAUTEUR)
         self.set_decorated(False)          # aucune barre de titre
         self.set_keep_above(True)          # toujours devant
         self.set_skip_taskbar_hint(True)   # pas dans la barre des taches
+        # LE CLAVIER. Faute du 17/09/2026, dite par Patrick : « impossible
+        # d ecrire a haichi, mon message est efface, et ca met directement
+        # le / ». Une fenetre SANS barre de titre et ABSENTE de la barre des
+        # taches ne recoit pas le clavier quand on clique dedans : les
+        # touches restent dans la fenetre d avant — le terminal — ou « / »
+        # ouvre le menu des commandes.
+        # « J accepte le clavier » ne suffit pas : il faut le RECLAMER.
+        # On se declare fenetre de dialogue, ce qui dit au bureau qu on
+        # attend une frappe.
         self.stick()                       # sur tous les bureaux
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         self.set_app_paintable(True)
 
         # le fond vraiment vide : on voit le bureau derriere
@@ -103,8 +131,18 @@ class Haichi(Gtk.Window):
         # la bulle, en haut
         self.boite_bulle = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.etiquette_pensee = Gtk.Label(xalign=0); self.etiquette_pensee.set_line_wrap(True)
+        # la laisse : le texte revient a la ligne au bout de
+        # 34 signes au lieu de s etaler (Patrick, 17/09/2026 :
+        # « leur fenetre de chat trop large »)
+        self.etiquette_pensee.set_max_width_chars(34)
+        self.etiquette_pensee.set_width_chars(28)
         self.etiquette_pensee.get_style_context().add_class("pensee")
         self.etiquette_texte = Gtk.Label(xalign=0); self.etiquette_texte.set_line_wrap(True)
+        # la laisse : le texte revient a la ligne au bout de
+        # 34 signes au lieu de s etaler (Patrick, 17/09/2026 :
+        # « leur fenetre de chat trop large »)
+        self.etiquette_texte.set_max_width_chars(34)
+        self.etiquette_texte.set_width_chars(28)
         self.etiquette_texte.set_selectable(True)      # pour pouvoir copier
         self.etiquette_texte.get_style_context().add_class("texte")
         self.boite_bulle.pack_start(self.etiquette_pensee, False, False, 0)
@@ -118,7 +156,7 @@ class Haichi(Gtk.Window):
         # laissant la bulle prendre sa taille naturelle, le texte long etait
         # coupe par le bas. Ici elle garde toujours la meme place, et le texte
         # qui depasse defile a l interieur.
-        rouleau.set_min_content_height(185)
+        rouleau.set_min_content_height(110)
         rouleau.set_max_content_height(185)
         rouleau.set_propagate_natural_height(False)
         rouleau.get_style_context().add_class("bulle")
@@ -139,8 +177,10 @@ class Haichi(Gtk.Window):
             import fabriquer_haichi_png
             fabriquer_haichi_png.fabriquer(chemin_image)
         self.dessin = Gtk.Image.new_from_file(chemin_image)
-        self.dessin.set_size_request(230, 255)
+        self.dessin.set_size_request(150, 166)
         colonne.pack_start(self.dessin, False, False, 0)
+        self._demarrer_animation("arthur")
+        self._ouvrir_la_boite("arthur")
 
         # la barre, en bas
         barre = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -148,13 +188,68 @@ class Haichi(Gtk.Window):
         self.bouton_voix = Gtk.Button(label="🔇")
         self.bouton_voix.get_style_context().add_class("voix")
         self.bouton_voix.connect("clicked", self._basculer_voix)
+        # ---- LE BOUTON DE LA BOUCHE (Patrick, 17/09/2026) ----
+        # Ses mots : « leur bouche qui parle, via un simple bouton, a
+        # rajouter apres le volume ». Il est donc pose juste a cote, et il
+        # marche pareil : un clic pour eteindre, un clic pour rallumer.
+        # Le texte est ecrit en toutes lettres : cette machine n'a pas de
+        # police pour les petits dessins, ils s'afficheraient en carres vides.
+        # Un dessin, comme le volume juste a cote : une bouche ouverte quand
+        # elle bouge, une bouche cousue quand elle est arretee. La machine a
+        # bien la police qu'il faut (Noto Color Emoji, verifie le 17/09/2026).
+        self.bouton_bouche = Gtk.Button(label="\U0001F444")
+        self.bouton_bouche.get_style_context().add_class("voix")
+        self.bouton_bouche.set_tooltip_text(
+            "La bouche bouge quand il parle. Clic pour l'arreter.")
+        self.bouton_bouche.get_style_context().add_class("active")
+        self.bouton_bouche.connect("clicked", self._basculer_bouche)
+
         self.saisie = Gtk.Entry()
-        self.saisie.set_placeholder_text("Pose ta question à Arthur…")
+        self.saisie.set_placeholder_text("Pose ta question à Arthur ou tape / ...")
         self.saisie.connect("activate", lambda *_: self.envoyer())
+        # LE CLIC RAMENE LE CLAVIER. Sans ca, cliquer dans la case donne le
+        # curseur a l ecran mais PAS les touches : elles restent dans la
+        # fenetre d avant. Mesure du 17/09/2026 : Patrick tapait, et son
+        # texte partait dans le terminal.
+        self.saisie.connect("button-press-event",
+                            lambda *_: self.reprendre_le_clavier())
+        self.connect("button-press-event",
+                     lambda *_: self.reprendre_le_clavier())
+        # Et des que la fenetre s affiche, le curseur est deja dans la case :
+        # il peut ecrire sans rien cliquer.
+        self.connect("map-event", lambda *_: self.reprendre_le_clavier())
+        
+        # --- Autosuggestion / Complétion des Slash Commands ---
+        completion = Gtk.EntryCompletion()
+        model_completion = Gtk.ListStore(str)
+        
+        # Collecte dynamique des compétences sous ~/.claude/skills et ~/.agents/skills
+        skills_connaissances = [
+            "/actus-ia", "/agent-ssh", "/analyse", "/berzerk", "/carte-vivante",
+            "/cast", "/circuits", "/concordance", "/courrier", "/delegation-actions",
+            "/etat-serveurs", "/fusion-sessions", "/geole-infinie", "/imprimer",
+            "/intrusions", "/kotodama", "/mes-outils", "/mode-twitch", "/navigateur",
+            "/nommage", "/ovh", "/pilotage-ia", "/poids-disque", "/presentation",
+            "/protection", "/proteger-une-page", "/rapport", "/recherche", "/restauration",
+            "/sage", "/scan", "/snapshot", "/tempest-projection", "/tests-solides",
+            "/video-narree", "/help"
+        ]
+        for sk in sorted(skills_connaissances):
+            model_completion.append([sk])
+            
+        completion.set_model(model_completion)
+        completion.set_text_column(0)
+        # La popup de completion GTK volait le focus clavier a la volée pendant la frappe (17/09/2026).
+        # En désactivant la popup intempestive tout en gardant l inline completion ou le tab, on préserve la totalité de la frappe.
+        completion.set_inline_completion(True)
+        completion.set_popup_completion(False)
+        self.saisie.set_completion(completion)
+
         envoyer = Gtk.Button(label="ENVOYER")
         envoyer.get_style_context().add_class("envoyer")
         envoyer.connect("clicked", lambda *_: self.envoyer())
         barre.pack_start(self.bouton_voix, False, False, 0)
+        barre.pack_start(self.bouton_bouche, False, False, 0)
         barre.pack_start(self.saisie, True, True, 0)
         barre.pack_start(envoyer, False, False, 0)
         colonne.pack_end(barre, False, False, 0)
@@ -176,10 +271,162 @@ class Haichi(Gtk.Window):
             pass
 
     # ---- parler au cockpit -------------------------------------------------
+    def reprendre_le_clavier(self, *_):
+        """Ramene le clavier dans la case de saisie, pour de vrai."""
+        try:
+            self.present()
+            fen = self.get_window()
+            if fen is not None:
+                fen.focus(Gdk.CURRENT_TIME)
+        except Exception:
+            pass
+        try:
+            self.saisie.grab_focus()
+            self.saisie.grab_focus_without_selecting()
+        except Exception:
+            pass
+        return False
+
+    # ---- LE VISAGE QUI BOUGE (17/09/2026) ----
+    # Avant, la fenetre affichait UNE SEULE image fixe. C'est pour ca que
+    # Patrick n'a jamais vu Arthur bouger : ce n'etait pas une panne, c'etait
+    # une photo dans un cadre. Maintenant on fait DEFILER plusieurs images,
+    # comme un dessin anime.
+    def _demarrer_animation(self, qui):
+        import importlib.util
+        import time
+        chemin = os.path.expanduser("~/outils/visages-animes.py")
+        if not os.path.exists(chemin):
+            return                  # pas d'animation : la photo fixe reste
+        s = importlib.util.spec_from_file_location("visages", chemin)
+        self._visages = importlib.util.module_from_spec(s)
+        s.loader.exec_module(self._visages)
+        self._visages.fabriquer_les_images(qui)
+        self._qui = qui
+        # Deux graines differentes, sinon les deux clignent EN MEME TEMPS —
+        # et deux visages qui clignent ensemble font tout de suite faux.
+        self._graine = 1 if qui == "arthur" else 2
+        self._debut = time.time()
+        self._parle_jusqua = 0.0
+        self._image_posee = None
+        # Vingt battements par seconde : assez pour qu'un clin d'oeil se voie,
+        # assez peu pour ne pas faire travailler la machine.
+        GLib.timeout_add(50, self._battement)
+
+    def _battement(self):
+        import time
+        if not hasattr(self, "_visages"):
+            return False            # False = on arrete de battre
+        t = time.time() - self._debut
+        if not getattr(self, "_bouche_allumee", True):
+            return True        # eteint : on ne touche a rien
+        etat = "parle" if time.time() < self._parle_jusqua else "repos"
+        nom = self._visages.image_du_moment(t, etat, self._graine)
+        # On ne recharge l'image QUE si elle change vraiment. Sinon on ferait
+        # travailler la machine vingt fois par seconde pour rien.
+        if nom != self._image_posee:
+            self.dessin.set_from_file(self._visages.chemin_image(self._qui, nom))
+            self._image_posee = nom
+        # LA RESPIRATION : le corps monte et descend de deux points a peine.
+        # ON NE LA REDEMANDE QUE SI ELLE A VRAIMENT CHANGE.
+        # Faute mesuree le 17/09/2026 : cette ligne etait jouee VINGT FOIS PAR
+        # SECONDE. Chaque fois, la fenetre devait refaire tout son calcul de
+        # placement. Resultat : Arthur mettait 16 a 21 SECONDES a repondre,
+        # alors que son cerveau repond en 1 seconde. Patrick abandonnait avant
+        # lui, et croyait qu'il ne savait pas repondre.
+        haut = int(166 + self._visages.respiration(t))
+        if haut != getattr(self, "_haut_pose", None):
+            self.dessin.set_size_request(150, haut)
+            self._haut_pose = haut
+        return True                 # True = on recommence au prochain battement
+
+    def parler_pendant(self, texte):
+        """Fait bouger la bouche le temps de dire ce texte.
+
+        On compte environ quatorze lettres par seconde — la vitesse d'une
+        parole tranquille. Un texte deux fois plus long fait donc bouger la
+        bouche deux fois plus longtemps.
+        """
+        import time
+        if not hasattr(self, "_visages"):
+            return
+        self._parle_jusqua = time.time() + max(1.0, min(20.0,
+                                                        len(texte or "") / 14.0))
+
+
+    # ---- LE CARNET DE PAROLE (17/09/2026) ----
+    # Patrick : « je viens d'ecrire aux deux, ils n'ont pas su repondre ».
+    # Impossible de lui dire pourquoi : ils ne gardaient AUCUNE trace de ce
+    # qu'on leur disait. Sans trace, on devine — et deviner est interdit ici.
+    def _noter(self, sens, texte, detail=""):
+        try:
+            import importlib.util as _iu, os as _os
+            if not hasattr(self, "_carnet"):
+                ch = _os.path.expanduser("~/outils/paroles-des-agents.py")
+                if not _os.path.exists(ch):
+                    self._carnet = None
+                else:
+                    _s = _iu.spec_from_file_location("paroles", ch)
+                    self._carnet = _iu.module_from_spec(_s)
+                    _s.loader.exec_module(self._carnet)
+            if self._carnet:
+                self._carnet.noter("arthur", sens, texte, detail)
+        except Exception:
+            pass          # un carnet ne doit jamais faire taire un agent
+
+    # ---- LA BOITE AUX LETTRES (Patrick, 17/09/2026) ----
+    # Ses mots : « trouve un moyen d'ecrire dans leur chat devant moi ».
+    # On regarde un fichier toutes les secondes. Si une phrase y a ete
+    # deposee, on l'affiche dans le chat et on repond — exactement comme si
+    # Patrick l'avait tapee. On ne lui prend JAMAIS le clavier : il l'a deja
+    # subi ce matin, son texte partait dans le terminal.
+    def _ouvrir_la_boite(self, qui):
+        try:
+            import importlib.util as _iu, os as _os
+            ch = _os.path.expanduser("~/outils/boite-aux-lettres.py")
+            if not _os.path.exists(ch):
+                return
+            _s = _iu.spec_from_file_location("boite", ch)
+            self._boite = _iu.module_from_spec(_s)
+            _s.loader.exec_module(self._boite)
+            self._boite_qui = qui
+            # On vide ce qui trainait AVANT d'ouvrir : sinon la fenetre
+            # repondrait d'un coup a tout l'historique en redemarrant.
+            self._boite.ramasser(qui)
+            GLib.timeout_add(1000, self._relever_la_boite)
+        except Exception:
+            pass
+
+    def _relever_la_boite(self):
+        try:
+            for phrase in self._boite.ramasser(self._boite_qui):
+                self.saisie.set_text(phrase)
+                self.envoyer()
+        except Exception:
+            pass
+        return True          # True = on regarde encore dans une seconde
+
     def montrer_bulle(self, texte, pensee=""):
+        self.parler_pendant(texte)
+        self._noter("rendu", texte, pensee)
+        import re
+        import html
         self.etiquette_pensee.set_text(pensee[:160] if pensee else "")
         self.etiquette_pensee.set_visible(bool(pensee))
-        self.etiquette_texte.set_text(texte)
+        
+        # Echappement XML/HTML pour Pango
+        texte_clean = html.escape(texte)
+        
+        # Transformation des URLs en liens cliquables Pango HTML
+        url_pattern = re.compile(r'(https?://[^\s]+|file://[^\s]+)')
+        texte_markup = url_pattern.sub(r'<a href="\1"><span foreground="#2563eb" underline="single">\1</span></a>', texte_clean)
+        
+        try:
+            self.etiquette_texte.set_use_markup(True)
+            self.etiquette_texte.set_markup(texte_markup)
+        except Exception:
+            self.etiquette_texte.set_text(texte)
+
         self.show_all()
         try:
             self.rouleau.get_vadjustment().set_value(0)   # on remonte en haut
@@ -191,27 +438,145 @@ class Haichi(Gtk.Window):
     def envoyer(self):
         question = self.saisie.get_text().strip()
         if not question:
+            # Case vide : on ne perd rien, mais on reprend le clavier — c est
+            # souvent qu il a tape ailleurs sans le savoir.
+            self.reprendre_le_clavier()
             return
-        self.saisie.set_text("")
+        # SA PHRASE EST MISE DE COTE AVANT TOUT. Faute du 17/09/2026 :
+        # l ancien code vidait la case tout de suite. Si l envoi ratait, la
+        # phrase etait perdue et il fallait la retaper.
+        self._dernier_texte = question
         self.montrer_bulle("Haichi réfléchit…", "")
-        threading.Thread(target=self._demander, args=(question,), daemon=True).start()
+        try:
+            threading.Thread(target=self._demander,
+                             args=(question,), daemon=True).start()
+        except Exception as ex:
+            # L envoi n est meme pas parti : on lui rend sa phrase.
+            self.saisie.set_text(self._dernier_texte)
+            self.montrer_bulle("Je n ai pas pu partir chercher : "
+                               + str(ex)[:70], "")
+            self.reprendre_le_clavier()
+            return
+        # L envoi EST parti : maintenant seulement on vide la case de façon stricte.
+        self.saisie.set_text("")
+        # Empêche tout signal/complétion résiduelle de remettre "/" dans le champ
+        GLib.idle_add(lambda: self.saisie.set_text(""))
+        self.reprendre_le_clavier()
+
+    # ------------------------------------------------------------------
+    # COMMENT ARTHUR CHERCHE — refait le 17/09/2026, apres trois fautes.
+    #
+    # 1. IL COUPAIT LA ROUTE. Son premier serveur (porte 8796) repond
+    #    {"erreur": "inconnu"} : il REPOND, il ne plante pas. L ancien code
+    #    ne se rabattait sur le cockpit que si ca PLANTAIT. Un « je ne sais
+    #    pas » poli n est pas une panne — donc le cockpit, qui avait la
+    #    reponse, n etait jamais appele. Mesure : le cockpit rend
+    #    « Oulan-Bator » en 1,5 seconde pour la meme question.
+    #    C est la lecon connue : un code 200 ne veut pas dire que c est ouvert.
+    #
+    # 2. IL RESTAIT MUET pendant toute la recherche. Patrick : « il doit dire
+    #    je cherche et je te reponds ». Quatre secondes de silence font croire
+    #    que c est casse.
+    #
+    # 3. IL NE MONTRAIT PAS SON TRAVAIL. Maintenant il dit quel etage a
+    #    repondu, combien de temps, et ce qu il a lu.
+    # ------------------------------------------------------------------
+
+    # Ce qui n est PAS une vraie reponse. Un serveur peut repondre poliment
+    # sans rien dire : on continue alors vers l etage suivant.
+    RIEN_DE_VRAI = ("", "(rien)", "inconnu", "je ne sais pas", "erreur")
+
+    def _est_une_vraie_reponse(self, d):
+        """Rend le texte si la reponse en est une, sinon None.
+
+        On refuse : une fiche qui porte « erreur », un texte vide, et les
+        formules creuses. Tout le reste passe."""
+        if not isinstance(d, dict):
+            return None
+        if d.get("erreur"):
+            return None
+        texte = (d.get("answer") or d.get("reponse") or d.get("raw_output") or "").strip()
+        if not texte:
+            return None
+        if texte.strip(" .!").lower() in self.RIEN_DE_VRAI:
+            return None
+        return texte
 
     def _demander(self, question):
+        import time
+        self._noter("recu", question)
+        etages = []          # ce qu il a essaye, dans l ordre, avec le temps
+
+        # ---- ETAGE 1 : le serveur d action, tout pres et tres rapide -----
+        depart = time.time()
+        try:
+            corps = json.dumps({"prompt": question, "action": "parler"}).encode("utf-8")
+            r = urllib.request.Request("http://127.0.0.1:8796/api/arthur-action",
+                                       data=corps,
+                                       headers={"Content-Type": "application/json"})
+            d = json.loads(urllib.request.urlopen(r, timeout=10).read().decode("utf-8"))
+        except Exception as ex:
+            d = {"erreur": str(ex)[:60]}
+        ms = int((time.time() - depart) * 1000)
+        texte = self._est_une_vraie_reponse(d)
+        etages.append(("mes outils", ms, "trouve" if texte else "rien"))
+        if texte:
+            pensee = (d.get("thought") or d.get("source") or "mes outils")[:150]
+            GLib.idle_add(self.montrer_bulle, texte,
+                          self._raconter_comment(etages, pensee))
+            self._peut_etre_a_voix_haute(texte)
+            return
+
+        # ---- IL LE DIT AVANT DE MONTER ----------------------------------
+        # La montee prend entre 1,5 et 11 secondes (mesure). On ne laisse
+        # jamais Patrick devant un silence : il saurait pas si c est casse.
+        GLib.idle_add(self.montrer_bulle,
+                      "Je cherche, un instant — je te reponds.",
+                      "mes outils n ont rien - je monte au grand modele")
+
+        # ---- ETAGE 2 : le cockpit, qui monte jusqu a Nemotron ------------
+        depart = time.time()
         try:
             corps = json.dumps({"prompt": question}).encode("utf-8")
             r = urllib.request.Request(COCKPIT + "/api/nano-search", data=corps,
                                        headers={"Content-Type": "application/json"})
             d = json.loads(urllib.request.urlopen(r, timeout=120).read().decode("utf-8"))
-            texte = d.get("answer", "") or "(rien)"
-            pensee = (d.get("thought") or "")[:150]
-            source = d.get("source", "")
-            if source:
-                pensee = f"[{source}] " + pensee
-        except Exception as e:
-            texte, pensee = "Je n arrive pas à joindre le cockpit : " + str(e)[:70], ""
-        GLib.idle_add(self.montrer_bulle, texte, pensee)
-        if self.voix_allumee:
-            threading.Thread(target=self._dire_a_voix_haute, args=(texte,), daemon=True).start()
+        except Exception as ex:
+            d = {"erreur": str(ex)[:70]}
+        ms = int((time.time() - depart) * 1000)
+        texte = self._est_une_vraie_reponse(d)
+        etages.append(("le grand modele", ms, "trouve" if texte else "rien"))
+
+        if texte:
+            pensee = (d.get("thought") or d.get("source") or "")[:150]
+            GLib.idle_add(self.montrer_bulle, texte,
+                          self._raconter_comment(etages, pensee))
+            self._peut_etre_a_voix_haute(texte)
+            return
+
+        # ---- ETAGE 3 : L AVEU. Jamais une invention. --------------------
+        # Si les deux etages n ont rien de vrai, Arthur le DIT, et il dit
+        # aussi ce qu il a essaye. Un aveu qui explique vaut mieux qu un
+        # aveu nu.
+        raison = (d.get("erreur") or "les deux etages n ont rien trouve")
+        aveu = "Je ne sais pas, et je ne vais pas inventer. " + str(raison)[:90]
+        GLib.idle_add(self.montrer_bulle, aveu, self._raconter_comment(etages, ""))
+        self._peut_etre_a_voix_haute(aveu)
+
+    def _raconter_comment(self, etages, pensee):
+        """Ce qu il a FAIT, et COMMENT — pas seulement le resultat.
+
+        Demande de Patrick le 17/09/2026 : « son ecran doit montrer ce qu il
+        a fait et comment ». On rend une ligne courte, lisible d un coup."""
+        bouts = ["%s %d ms %s" % (nom, ms, resultat) for nom, ms, resultat in etages]
+        total = sum(ms for _, ms, _ in etages)
+        ligne = " -> ".join(bouts) + "  (en tout %d ms)" % total
+        return (pensee + " | " + ligne) if pensee else ligne
+
+    def _peut_etre_a_voix_haute(self, texte):
+        if getattr(self, "voix_allumee", False):
+            threading.Thread(target=self._dire_a_voix_haute,
+                             args=(texte,), daemon=True).start()
 
     def _dire_a_voix_haute(self, texte):
         try:
@@ -221,6 +586,26 @@ class Haichi(Gtk.Window):
             urllib.request.urlopen(r, timeout=90).read()
         except Exception:
             pass
+
+    def _basculer_bouche(self, *_):
+        """Allume ou eteint le mouvement de la bouche et des yeux.
+
+        Eteint, le dessin revient a son image d'origine, exactement comme
+        avant : rien ne bouge, rien n'est perdu.
+        """
+        self._bouche_allumee = not getattr(self, "_bouche_allumee", True)
+        self.bouton_bouche.set_label(
+            "\U0001F444" if self._bouche_allumee else "\U0001F910")
+        ctx = self.bouton_bouche.get_style_context()
+        (ctx.add_class if self._bouche_allumee else ctx.remove_class)("active")
+        if not self._bouche_allumee:
+            self._image_posee = None
+            try:
+                import os as _os
+                self.dessin.set_from_file(self._visages.ORIGINE[self._qui])
+                self.dessin.set_size_request(150, 166)
+            except Exception:
+                pass
 
     def _basculer_voix(self, _):
         self.voix_allumee = not self.voix_allumee

@@ -376,7 +376,32 @@
   <div class="chat-bar">
     <button id="btn-voix" class="btn-voix" title="Activer ou couper la voix de Haichi">🔇</button>
     <button id="btn-decor" class="btn-voix" title="Changer le decor : nuit etoilee ou Nebius">🎨</button>
-    <input type="text" class="chat-input" id="chat-input" placeholder="Pose ta question à Arthur…" autocomplete="off"/>
+    <input type="text" class="chat-input" id="chat-input" list="skills-list" placeholder="Pose ta question à Arthur ou tape / ..." autocomplete="off"/>
+    <datalist id="skills-list">
+      <option value="/actus-ia">/actus-ia — Nouvelles fraîches de l'IA</option>
+      <option value="/agent-ssh">/agent-ssh — Canal SSH sécurisé</option>
+      <option value="/analyse">/analyse — Démarche scientifique d'analyse</option>
+      <option value="/berzerk">/berzerk — Mode d'action autonome</option>
+      <option value="/carte-vivante">/carte-vivante — Carte du système nomi et tour</option>
+      <option value="/cast">/cast — Diffusion sur écran/TV network</option>
+      <option value="/circuits">/circuits — Circuits de prod et épreuves</option>
+      <option value="/courrier">/courrier — Envoi de courriels et alertes</option>
+      <option value="/etat-serveurs">/etat-serveurs — État réel des VPS</option>
+      <option value="/geole-infinie">/geole-infinie — Reconstitution historique</option>
+      <option value="/imprimer">/imprimer — Export PDF propre</option>
+      <option value="/intrusions">/intrusions — Sécurité et attaques web</option>
+      <option value="/kotodama">/kotodama — Résumé des demandes d'Orel</option>
+      <option value="/mes-outils">/mes-outils — Inventaire par familles</option>
+      <option value="/navigateur">/navigateur — Pilotage Chrome/Playwright</option>
+      <option value="/ovh">/ovh — Configuration DNS & MX OVH</option>
+      <option value="/pilotage-ia">/pilotage-ia — Proactivité et options A/B/C</option>
+      <option value="/poids-disque">/poids-disque — Volumes et occupation disque</option>
+      <option value="/rapport">/rapport — Rapport de session</option>
+      <option value="/recherche">/recherche — Recherche dans les lieux</option>
+      <option value="/sage">/sage — Consultation du Grand Sage</option>
+      <option value="/tests-solides">/tests-solides — Validation par épreuves</option>
+      <option value="/help">/help — Liste des commandes</option>
+    </datalist>
     <button class="btn-send" onclick="envoyer()">ENVOYER</button>
   </div>
 
@@ -393,7 +418,13 @@
       thinkTag.style.display = "none";
     }
 
-    replyText.textContent = texte;
+    // Echappement HTML basique
+    let texteClean = texte.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    // Transformation des URLs en liens cliquables
+    let texteHTML = texteClean.replace(/(https?:\/\/[^\s]+|file:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #e0ff4f; font-weight: bold; text-decoration: underline;">$1</a>');
+
+    replyText.innerHTML = texteHTML;
     bubble.classList.add("visible");
     if (texte && !/^Haichi refléchit/.test(texte)) direAVoixHaute(texte);
   }
@@ -407,31 +438,32 @@
     montrerBulle("Arthur réfléchit…", "Recherche déterministe sub-milliseconde...");
 
     try {
-      const res = await fetch("http://127.0.0.1:8790/api/nano-search", {
+      // Appel prioritaire au serveur d'action local (port 8796)
+      const res = await fetch("http://127.0.0.1:8796/api/arthur-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt })
+        body: JSON.stringify({ prompt: prompt, action: "parler" })
       });
 
       const data = await res.json();
-      
-      let thought = "";
-      let answer = "";
-
-      if (data.raw_output) {
-        const mThink = data.raw_output.match(/<think>(.*?)<\/think>/s);
-        const mAns = data.raw_output.match(/<answer>(.*?)<\/answer>/s);
-        if (mThink && mThink[1]) thought = mThink[1].trim();
-        if (mAns && mAns[1]) answer = mAns[1].trim();
-      }
-
-      if (!answer && data.answer) answer = data.answer;
-      if (!answer && data.reply) answer = data.reply;
-      if (!answer) answer = "J'ai bien analysé ta demande avec le Nano-Moteur !";
+      let answer = data.answer || data.raw_output || "Action exécutée par Arthur !";
+      let thought = data.thought || data.source || "Action locale";
 
       montrerBulle(answer, thought);
     } catch (err) {
-      montrerBulle("Erreur de connexion avec le Cockpit local: " + err.message, "Échec réseau");
+      // Fallback si le port 8796 ne répond pas
+      try {
+        const res = await fetch("http://127.0.0.1:8790/api/nano-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: prompt })
+        });
+        const data = await res.json();
+        let answer = data.answer || "J'ai bien analysé ta demande !";
+        montrerBulle(answer, "Cockpit Fallback");
+      } catch (ex) {
+        montrerBulle("Erreur de connexion avec le serveur d'action Arthur: " + err.message, "Échec réseau");
+      }
     }
   }
 

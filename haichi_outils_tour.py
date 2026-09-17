@@ -160,10 +160,26 @@ def outil_qui_est_en_ligne():
 
 
 # ── OUTIL 2 : LE SERVEUR VA-T-IL BIEN ? ─────────────────────────────────────
+# Chaque facade porte QUATRE choses : son nom, son adresse, les codes qui
+# veulent dire « elle va bien », et — si on ne l'attend plus — POURQUOI.
+#
+# Cette quatrieme case est nee d'une faute reelle (16/09/2026). Arthur
+# annoncait « Ca ne va PAS : l'accueil de la tour INTROUVABLE ». Il a parle
+# au serveur : sur les huit programmes qui tournent, aucun n'est l'accueil.
+# La page n'etait pas tombee, elle avait ete ENLEVEE — volontairement.
+#
+# Un detecteur qui ne connait que « la » et « pas la » crie au feu devant une
+# piece qu'on a demolie expres. Et une alerte qui se declenche toujours pour
+# rien finit par ne plus etre lue : c'est comme ca qu'on rate la vraie panne.
+# On garde donc la ligne — on ne cache rien — mais on dit calmement qu'elle
+# est partie, et on ne compte plus ca comme un ennui.
+RETIREE_ODOO = ("retiree expres : Odoo a ete supprime. La fonctionnalite se "
+                "retrouve dans la sauvegarde, sans le rallumer.")
+
 _FACADES = [
-    ("le site public",      "https://matourdecontrole.fr/",                    {200}),
-    ("la vente d'agents",   "https://offreagent.matourdecontrole.fr/",         {200}),
-    ("l'accueil de la tour", "https://tour.matourdecontrole.fr/tour/dashboard", {200, 303}),
+    ("le site public",      "https://matourdecontrole.fr/",                    {200}, None),
+    ("la vente d'agents",   "https://offreagent.matourdecontrole.fr/",         {200}, None),
+    ("l'accueil de la tour", "https://tour.matourdecontrole.fr/tour/dashboard", {200, 303}, RETIREE_ODOO),
 ]
 
 
@@ -171,7 +187,12 @@ def _releve_sante():
     texte, souci = _demander_a_la_tour(
         "uptime; echo ---; df -h / | tail -1; echo ---; "
         "free -m | sed -n 2p; echo ---; "
-        "docker ps -a --format '{{.Names}}|{{.Status}}'")
+        "docker ps -a --format '{{.Names}}|{{.Status}}'; echo ---; nproc; "
+        "echo ---; systemctl is-active fail2ban; "
+        "sudo -n fail2ban-client status 2>/dev/null "
+        "| grep 'Number of jail' | grep -oE '[0-9]+$' ; "
+        "sudo -n fail2ban-client status sshd 2>/dev/null "
+        "| grep 'Currently banned' | grep -oE '[0-9]+$'")
     mesures = {"souci": souci}
     if not souci:
         bouts = (texte or "").split("---")
@@ -179,9 +200,37 @@ def _releve_sante():
         mesures["disque"] = bouts[1].strip() if len(bouts) > 1 else ""
         mesures["memoire"] = bouts[2].strip() if len(bouts) > 2 else ""
         mesures["conteneurs"] = bouts[3].strip() if len(bouts) > 3 else ""
+        # Le seuil de « il peine » n'est pas un chiffre qu'on choisit : c'est
+        # le nombre de coeurs. On le demande, on ne le devine pas.
+        try:
+            mesures["coeurs"] = int(bouts[4].strip()) if len(bouts) > 4 else 0
+        except ValueError:
+            mesures["coeurs"] = 0
+
+        # Le videur : le programme qui bloque ceux qui frappent trop souvent
+        # a la porte. Patrick, le 16/09/2026 : « comment le banisseur est mort
+        # et ca passe inapercu 2 jours ? » — parce que personne ne le
+        # regardait. Il est reste mort du 14/09 13h47 au 16/09 18h12.
+        #
+        # On regarde DEUX choses, pas une : est-il debout, et garde-t-il
+        # vraiment ? Un videur debout avec zero cellule ne garde rien.
+        mesures["videur"] = None
+        if len(bouts) > 5:
+            lignes_videur = bouts[5].strip().splitlines()
+            if lignes_videur:
+                def _nombre(rang):
+                    try:
+                        return int(lignes_videur[rang].strip())
+                    except (IndexError, ValueError):
+                        return 0
+                mesures["videur"] = {
+                    "debout": lignes_videur[0].strip() == "active",
+                    "cellules": _nombre(1),
+                    "bannis": _nombre(2),
+                }
 
     portes = []
-    for nom, adresse, bons in _FACADES:
+    for nom, adresse, bons, retiree in _FACADES:
         try:
             d = urllib.request.Request(adresse, method="GET")
             with urllib.request.urlopen(d, timeout=12) as r:
@@ -190,7 +239,7 @@ def _releve_sante():
             code = e.code
         except Exception:
             code = 0
-        portes.append((nom, adresse, code, code in bons))
+        portes.append((nom, adresse, code, code in bons, retiree))
     mesures["portes"] = portes
     return mesures
 
@@ -207,16 +256,40 @@ def outil_serveur_va_bien():
         # « load average: 2.58, 1.94, 1.52 » — on veut SEULEMENT le premier
         # nombre. Ecrire [\d.,]+ attrapait « 2.58, » avec sa virgule, et le
         # programme s'arretait en erreur.
-        charge = re.search(r"load average:\s*(\d+(?:[.,]\d+)?)", m.get("uptime", ""))
+        # « load average: 5.71, 2.07, 1.56 » — trois chiffres, pas un.
+        # La derniere minute, les cinq dernieres, le dernier quart d'heure.
+        #
+        # On jugeait sur le PREMIER. C'etait faux (16/09/2026) : une tache
+        # planifiee qui demarre le fait sauter pendant trente secondes, et
+        # Arthur criait a la panne. L'etat de fond, c'est le TROISIEME.
+        # Le premier ne sert qu'a dire « en ce moment, ca pousse ».
+        apres = re.search(r"load average:(.*)", m.get("uptime", ""))
+        trois = re.findall(r"\d+(?:[.,]\d+)?", apres.group(1)) if apres else []
         depuis = re.search(r"up\s+(.+?),\s+\d+\s+user", m.get("uptime", ""))
         if depuis:
             lignes.append("Allume depuis %s." % depuis.group(1))
-        if charge:
-            valeur = float(charge.group(1).replace(",", "."))
-            lignes.append("Travail en cours : %.2f  (au-dessus de 4, il peine)"
-                          % valeur)
-            if valeur > 4:
-                ennuis.append("il peine, il a trop de travail")
+
+        coeurs = int(m.get("coeurs") or 0)
+        if len(trois) >= 3:
+            minute = float(trois[0].replace(",", "."))
+            quart = float(trois[2].replace(",", "."))
+            if coeurs:
+                lignes.append("Travail : %.2f en ce moment, %.2f sur le dernier "
+                              "quart d'heure, pour %d coeurs."
+                              % (minute, quart, coeurs))
+                if quart > coeurs:
+                    lignes.append("   → le quart d'heure depasse les coeurs : "
+                                  "c'est de fond.")
+                    ennuis.append("il peine, il a trop de travail depuis un "
+                                  "quart d'heure")
+                elif minute > coeurs:
+                    lignes.append("   → une pointe passagere, deja retombee : "
+                                  "rien a reparer.")
+            else:
+                # Sans le nombre de coeurs, on ne sait pas juger. On le DIT.
+                lignes.append("Travail : %.2f en ce moment, %.2f sur le quart "
+                              "d'heure. Je n'ai pas pu compter les coeurs, "
+                              "donc je ne dis pas si c'est trop." % (minute, quart))
 
         d = m.get("disque", "").split()
         if len(d) >= 5:
@@ -243,14 +316,41 @@ def outil_serveur_va_bien():
                 lignes.append("   ✗ %-22s %s" % (nom or "(sans nom)", etat))
             ennuis.append("%d chose(s) tombee(s)" % len(tombes))
 
+    videur = m.get("videur")
+    if videur is None:
+        lignes.append("")
+        lignes.append("Le videur : je n'ai pas pu regarder.")
+    else:
+        lignes.append("")
+        if not videur.get("debout"):
+            lignes.append("Le videur : ✗ A TERRE. Plus personne ne bloque ceux "
+                          "qui frappent trop souvent a la porte.")
+            ennuis.append("le videur est a terre")
+        elif not videur.get("cellules"):
+            # Debout ne veut pas dire qu'il garde. Meme lecon qu'un port qui
+            # repond sans que la page marche.
+            lignes.append("Le videur : ✗ debout, mais ZERO cellule — il ne "
+                          "garde rien du tout.")
+            ennuis.append("le videur ne garde rien")
+        else:
+            lignes.append("Le videur : · debout, %d cellule(s), %d adresse(s) "
+                          "bloquee(s) a la porte."
+                          % (videur["cellules"], videur.get("bannis", 0)))
+
     lignes.append("")
     lignes.append("Les portes du site :")
-    for nom, adresse, code, bon in m.get("portes", []):
+    for porte in m.get("portes", []):
+        nom, adresse, code, bon = porte[0], porte[1], porte[2], porte[3]
+        retiree = porte[4] if len(porte) >= 5 else None
         mot = {0: "injoignable", 200: "ouverte", 303: "demande de se connecter",
                404: "INTROUVABLE", 502: "en panne"}.get(code, "code %d" % code)
-        lignes.append("   %s %-22s %s" % ("·" if bon else "✗", nom, mot))
-        if not bon:
-            ennuis.append("%s : %s" % (nom, mot))
+        if retiree:
+            # On le DIT — mais ce n'est pas un ennui : c'est voulu.
+            lignes.append("   — %-22s %s" % (nom, retiree))
+        else:
+            lignes.append("   %s %-22s %s" % ("·" if bon else "✗", nom, mot))
+            if not bon:
+                ennuis.append("%s : %s" % (nom, mot))
 
     lignes.append("")
     if ennuis:

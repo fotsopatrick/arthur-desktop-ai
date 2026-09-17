@@ -1,4 +1,6 @@
-# Arthur — the assistant that says "I don't know"
+# Arthur (Code Name: `nominomi`) — the assistant that says "I don't know"
+
+**Codename:** `nominomi`
 
 Arthur answers from **written rules**, on your own machine, **with no network**.
 When he doesn't know, he says so. He never invents.
