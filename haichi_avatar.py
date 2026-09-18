@@ -36,41 +36,41 @@ window { background-color: transparent; }
 
 /* la bulle : son propre fond, bien net */
 .bulle {
-  background-color: rgba(10, 16, 28, 0.94);
-  border: 1.5px solid rgba(56, 189, 248, 0.75);
+  background-color: rgba(22, 16, 8, 0.95);
+  border: 1.5px solid rgba(245, 158, 11, 0.78);
   border-radius: 18px;
   padding: 9px 11px;
 }
 .bulle > * { background-color: transparent; }
 .bulle scrollbar { background: transparent; }
-.pensee { color: #f59e0b; font-size: 10.5px; font-family: monospace; }
-.texte  { color: #e6f1fb; font-size: 13.5px; }
+.pensee { color: #7dd3a0; font-size: 10.5px; font-family: monospace; }
+.texte  { color: #f5e6cf; font-size: 13.5px; }
 
 /* la barre du bas : son propre fond aussi */
 .barre {
-  background-color: rgba(10, 16, 28, 0.94);
+  background-color: rgba(22, 16, 8, 0.95);
   border: 1.5px solid rgba(56, 189, 248, 0.45);
   border-radius: 24px;
   padding: 5px 6px;
 }
 entry {
   background: transparent; border: none; box-shadow: none;
-  color: #e6f1fb; font-size: 13px; caret-color: #38bdf8;
+  color: #f5e6cf; font-size: 13px; caret-color: #f0a531;
 }
 entry selection { background-color: rgba(56,189,248,.45); }
 .envoyer {
   background-image: none;
-  background-color: #0ea5e9;
+  background-color: #b45309;
   color: #ffffff; font-weight: bold; font-size: 12px;
   border-radius: 20px; border: none; padding: 6px 14px;
 }
-.envoyer:hover { background-color: #38bdf8; }
+.envoyer:hover { background-color: #f0a531; }
 .voix {
   background-image: none; background-color: rgba(30,41,59,.9);
   color: #94a3b8; border-radius: 50%; border: 1px solid rgba(148,163,184,.45);
   padding: 4px 8px; font-size: 13px;
 }
-.voix.active { color: #38bdf8; border-color: #38bdf8;
+.voix.active { color: #f0a531; border-color: #f0a531;
                background-color: rgba(56,189,248,.18); }
 
 /* L'ICONE DISCRETE POUR ABAISSER EN ROND (Patrick, 18/09/2026) :
@@ -271,18 +271,37 @@ class Haichi(Gtk.Window):
         self.bouton_bouche.get_style_context().add_class("active")
         self.bouton_bouche.connect("clicked", self._basculer_bouche)
 
-        self.saisie = ZoneTexte()
-        # Entree ENVOIE ; Maj+Entree fait un retour a la ligne. Une spec
-        # multi-lignes collee reste donc entiere jusqu'a l'envoi.
-        self.saisie.vue.connect("key-press-event", self._touche_saisie)
-        self.saisie.vue.set_tooltip_text(
-            "Pose ta question a Arthur ou tape / ...  (Maj+Entree = nouvelle ligne)")
-        # LE CLIC RAMENE LE CLAVIER. Sans ca, cliquer dans la case donne le
-        # curseur a l ecran mais PAS les touches : elles restent dans la
-        # fenetre d avant. Mesure du 17/09/2026 : Patrick tapait, et son
-        # texte partait dans le terminal.
-        self.saisie.vue.connect("button-press-event",
-                                lambda *_: self.reprendre_le_clavier())
+        # LA MEME BARRE QUE BRAIGNAK (Patrick, 18/09/2026) : « identique ».
+        # Meme champ, memes gestes, meme completion que Braignak.
+        self.saisie = Gtk.Entry()
+        self.saisie.set_placeholder_text("Pose ta question a Arthur…")
+        self.saisie.connect("activate", lambda *_: self.envoyer())
+        self.saisie.connect("button-press-event",
+                            lambda *_: self.reprendre_le_clavier())
+        self.connect("button-press-event",
+                     lambda *_: self.reprendre_le_clavier())
+        self.connect("map-event", lambda *_: self.reprendre_le_clavier())
+
+        # --- Autosuggestion / Completion des Slash Commands (comme Braignak) ---
+        completion = Gtk.EntryCompletion()
+        model_completion = Gtk.ListStore(str)
+        skills_connaissances = [
+            "/actus-ia", "/agent-ssh", "/analyse", "/berzerk", "/carte-vivante",
+            "/cast", "/circuits", "/concordance", "/courrier", "/delegation-actions",
+            "/etat-serveurs", "/fusion-sessions", "/geole-infinie", "/imprimer",
+            "/intrusions", "/kotodama", "/mes-outils", "/mode-twitch", "/navigateur",
+            "/nommage", "/ovh", "/pilotage-ia", "/poids-disque", "/presentation",
+            "/protection", "/proteger-une-page", "/rapport", "/recherche", "/restauration",
+            "/sage", "/scan", "/snapshot", "/tempest-projection", "/tests-solides",
+            "/video-narree", "/help"
+        ]
+        for sk in sorted(skills_connaissances):
+            model_completion.append([sk])
+        completion.set_model(model_completion)
+        completion.set_text_column(0)
+        completion.set_inline_completion(True)
+        completion.set_popup_completion(False)
+        self.saisie.set_completion(completion)
 
         envoyer = Gtk.Button(label="ENVOYER")
         envoyer.get_style_context().add_class("envoyer")
@@ -302,6 +321,11 @@ class Haichi(Gtk.Window):
         discret, pour les abaisser en cercle ou les rouvrir.
         """
         try:
+            try:
+                open("/tmp/avatar-rabattu.log", "a").write(
+                    "arthur toggle -> rabattu=%s\n" % (not self.rabattu))
+            except Exception:
+                pass
             if not self.rabattu:
                 self.rouleau.hide()
                 self._barre.hide()
@@ -412,7 +436,10 @@ class Haichi(Gtk.Window):
         # alors que son cerveau repond en 1 seconde. Patrick abandonnait avant
         # lui, et croyait qu'il ne savait pas repondre.
         haut = int(166 + self._visages.respiration(t))
-        if haut != getattr(self, "_haut_pose", None):
+        # NE PAS REDIMENSIONNER QUAND C'EST RABATTU (18/09/2026) : l'animation
+        # remettait le dessin a 150 de large VINGT FOIS PAR SECONDE, ce qui
+        # regonflait la taille minimale de la fenetre. Le rond restait gros.
+        if not self.rabattu and haut != getattr(self, "_haut_pose", None):
             self.dessin.set_size_request(150, haut)
             self._haut_pose = haut
         return True                 # True = on recommence au prochain battement
