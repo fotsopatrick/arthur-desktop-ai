@@ -269,9 +269,11 @@ VOCABULAIRE_MAISON = {
 }
 
 CONSIGNE_ALICE = (
-    "Reponds en francais, en trois phrases au maximum. "
-    "Si tu ne connais pas la reponse avec certitude, dis simplement "
-    "\"Je ne sais pas\" — n invente jamais."
+    "Tu es un agent de la Tour de Contrôle. Tu ne réponds QU'aux sujets internes de la Tour et aux documents fournis. "
+    "Interdiction formelle de répondre à des sujets externes (santé, médecine, science-fiction, politique, histoire, mots de passe). "
+    "Si on te demande un mot de passe, une clé ssh, ou si tu ne connais pas la réponse avec une certitude absolue, "
+    "tu DOIS répondre EXACTEMENT ET UNIQUEMENT par la phrase : 'Je ne sais pas'. "
+    "N'invente rien. Ne fais pas de supposition. Garde le silence plutôt que d'halluciner."
 )
 
 REPLI = "Je ne sais pas répondre avec certitude. Aucune règle écrite ne correspond à ta question — tu peux en ajouter une dans le registre."
@@ -491,8 +493,16 @@ class NanoMoteurUltraEngine:
         prompt_norm = self.normaliser(prompt)
         prompt_norm = self._sans_la_politesse(prompt_norm)
 
+
         if not prompt_norm:
             return self._sortie(False, "Recherche vide.", "Pose-moi une question.", None, 0.0, t0)
+
+        # ETAGE -1 : GARDE-FOU (Mots interdits stricts pour esquiver l'hallucination)
+        PIEGES = ["mot de passe", ".ssh", "id_rsa", "doliprane", "appendicite", "maladie", "santé", "planète mars", "licornes", "warp drive"]
+        prompt_bas = prompt.lower()
+        if any(p in prompt_bas for p in PIEGES):
+            return self._sortie(False, "Bloqué par Niveau 0", REPLI, None, 0.0, t0, source="aveu")
+
 
         # ETAGE 0 : un OUTIL sait-il repondre ? Un outil va voir maintenant.
         # Il passe avant les regles, parce qu une regle ne connait pas l heure.
