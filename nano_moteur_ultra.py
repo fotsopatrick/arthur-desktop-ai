@@ -498,7 +498,7 @@ class NanoMoteurUltraEngine:
             return self._sortie(False, "Recherche vide.", "Pose-moi une question.", None, 0.0, t0)
 
         # ETAGE -1 : GARDE-FOU (Mots interdits stricts pour esquiver l'hallucination)
-        PIEGES = ["mot de passe", ".ssh", "id_rsa", "doliprane", "appendicite", "maladie", "santé", "planète mars", "licornes", "warp drive"]
+        PIEGES = ["mot de passe", ".ssh", "id_rsa", "doliprane", "appendicite", "planète mars", "licornes", "warp drive"]
         prompt_bas = prompt.lower()
         if any(p in prompt_bas for p in PIEGES):
             return self._sortie(False, "Bloqué par Niveau 0", REPLI, None, 0.0, t0, source="aveu")
@@ -570,9 +570,6 @@ class NanoMoteurUltraEngine:
                       else "Mots inconnus dans la question : " + ", ".join(inconnus[:4]))
             # Sante : on refuse net, avant meme de penser au renfort.
             mots_q = set(prompt_norm.split())
-            if mots_q & MOTS_SANTE:
-                return self._sortie(False, "Question de santé : hors de mon domaine.",
-                                    REFUS_SANTE, None, 0.0, t0, source="aveu")
 
             # DES MOTS INCONNUS, SANS QUESTION : ON AVOUE (17/09/2026).
             #
