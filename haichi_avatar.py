@@ -72,6 +72,21 @@ entry selection { background-color: rgba(56,189,248,.45); }
 }
 .voix.active { color: #38bdf8; border-color: #38bdf8;
                background-color: rgba(56,189,248,.18); }
+
+/* L'ICONE DISCRETE POUR ABAISSER EN ROND (Patrick, 18/09/2026) :
+   un icone a cote d'eux, discret, pour les abaisser en cercle ou les
+   rouvrir. */
+.rabattre {
+  background-image: none; background-color: rgba(15,23,42,.55);
+  color: #cbd5e1; border-radius: 50%; border: 1px solid rgba(148,163,184,.5);
+  padding: 0; font-size: 11px; min-width: 18px; min-height: 18px;
+}
+.rabattre:hover { background-color: rgba(56,189,248,.4); color: #ffffff; }
+.dessin-rond {
+  background-color: rgba(10,18,32,.96);
+  border: 1.5px solid rgba(56,189,248,.7);
+  border-radius: 50%; padding: 2px;
+}
 """
 
 
@@ -214,7 +229,22 @@ class Haichi(Gtk.Window):
             fabriquer_haichi_png.fabriquer(chemin_image)
         self.dessin = Gtk.Image.new_from_file(chemin_image)
         self.dessin.set_size_request(150, 166)
-        colonne.pack_start(self.dessin, False, False, 0)
+        # L'ICONE DISCRETE POUR ABAISSER EN ROND (Patrick, 18/09/2026).
+        self.bouton_rabattre = Gtk.Button(label="▽")
+        self.bouton_rabattre.get_style_context().add_class("rabattre")
+        self.bouton_rabattre.set_tooltip_text("Abaisser en rond / rouvrir")
+        self.bouton_rabattre.set_relief(Gtk.ReliefStyle.NONE)
+        self.bouton_rabattre.connect("clicked", lambda *_: self._basculer_rabattu())
+        self.rabattu = False
+        surcouche = Gtk.Overlay()
+        surcouche.add(self.dessin)
+        surcouche.add_overlay(self.bouton_rabattre)
+        self.bouton_rabattre.set_halign(Gtk.Align.END)
+        self.bouton_rabattre.set_valign(Gtk.Align.START)
+        self.bouton_rabattre.set_margin_top(4)
+        self.bouton_rabattre.set_margin_end(4)
+        colonne.pack_start(surcouche, False, False, 0)
+        self._surcouche = surcouche
         self._demarrer_animation("arthur")
         self._ouvrir_la_boite("arthur")
 
@@ -261,6 +291,36 @@ class Haichi(Gtk.Window):
         barre.pack_start(self.saisie, True, True, 0)
         barre.pack_start(envoyer, False, False, 0)
         colonne.pack_end(barre, False, False, 0)
+        self._barre = barre
+
+    # ---- l'abaisser en rond, ou le rouvrir ---------------------------------
+    def _basculer_rabattu(self):
+        """Abaisse l'avatar en un petit rond, ou le rouvre.
+
+        Ne le 18/09/2026, demande de Patrick : un icone a cote d'eux,
+        discret, pour les abaisser en cercle ou les rouvrir.
+        """
+        try:
+            if not self.rabattu:
+                self.rouleau.hide()
+                self._barre.hide()
+                self.dessin.set_size_request(58, 58)
+                self.dessin.get_style_context().add_class("dessin-rond")
+                self.resize(74, 74)
+                self.bouton_rabattre.set_label("△")
+                self.bouton_rabattre.set_tooltip_text("Rouvrir")
+                self.rabattu = True
+            else:
+                self.dessin.set_size_request(150, 166)
+                self.dessin.get_style_context().remove_class("dessin-rond")
+                self.rouleau.show()
+                self._barre.show()
+                self.resize(LARGEUR, HAUTEUR)
+                self.bouton_rabattre.set_label("▽")
+                self.bouton_rabattre.set_tooltip_text("Abaisser en rond / rouvrir")
+                self.rabattu = False
+        except Exception:
+            pass
 
     # ---- on peut l attraper et le deplacer ---------------------------------
     def _deplacable(self):

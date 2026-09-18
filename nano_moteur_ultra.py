@@ -117,6 +117,17 @@ MOTS_D_ACTION = {
     "fais", "faites", "ouvre", "ouvrez", "ouvrir",
 }
 MOTS_DE_CONSIGNE |= MOTS_D_ACTION
+
+# ── LES MOTS QUI DEMANDENT DE REPONDRE (18/09/2026) ──────────────────────────
+# Discussion de Patrick avec Braignak flottant : « tu peux repondre a c'est
+# quoi docker » a rendu un CIRCUIT DE LA TOUR (« Test du login ») au lieu de
+# Docker. Pourquoi : « repondre » n'etait pas une consigne, il a fait gagner
+# un circuit qui contenait ce mot. « repondre » dit ce qu'on veut FAIRE, pas
+# DE QUOI on parle. On l'ignore pour CHOISIR, comme « explique » et « fais ».
+MOTS_POUR_REPONDRE = {
+    "repondre", "reponds", "repond", "reponse", "repondre",
+}
+MOTS_DE_CONSIGNE |= MOTS_POUR_REPONDRE
 # LES MOTS DE POLITESSE — ajoutes le 17/09/2026.
 #
 # Patrick : « Arthur dit automatiquement salut, meme si mon premier message a
@@ -153,7 +164,10 @@ BASE_INITIALE = {
     "salutations": {
         "mots": ["salut", "bonjour", "coucou", "hello", "hi", "bonsoir", "yo", "hey", "ca va", "wesh", "salutations"],
         "think": "Prise de contact et salutation chaleureuse.",
-        "answer": "Salut Patrick ! 🔭 Je suis Haichi / Petit Braignak. Je reponds a partir de regles ecrites, en moins d'un millieme de seconde. Pose-moi une question sur nos agents, la tour, Docker ou nos circuits."
+        # Salutation NEUTRE (18/09/2026) : le cerveau est PARTAGE entre Arthur
+        # et Braignak. Dire « je suis Haichi / Petit Braignak » faisait repondre
+        # « Haichi » a Braignak, qui s'appelle Braignak. On ne nomme plus.
+        "answer": "Salut Patrick ! Je reponds a partir de regles ecrites, en moins d'un millieme de seconde. Pose-moi une question sur nos agents, la tour, Docker ou nos circuits."
     },
     "docker_infra": {
         "mots": ["docker", "dokcer", "conteneur", "conteneurs", "docker-compose", "image docker", "cgroups"],
