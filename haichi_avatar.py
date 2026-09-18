@@ -75,6 +75,42 @@ entry selection { background-color: rgba(56,189,248,.45); }
 """
 
 
+class ZoneTexte(Gtk.ScrolledWindow):
+    """La case d'Arthur, en PLUSIEURS LIGNES (corrige le 18/09/2026).
+
+    Avant, c'etait un Gtk.Entry : une seule ligne. Une spec collee sur
+    plusieurs lignes etait coupee, et chaque morceau partait comme une demande
+    separee — d'ou des apps absurdes et « le lien du site manquait ». Ici la
+    zone accepte tout le texte : Entree envoie, Maj+Entree fait un retour a la
+    ligne. On garde get_text()/set_text() pour que le reste du programme ne
+    change pas.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_min_content_height(46)
+        self.set_max_content_height(96)
+        self.set_shadow_type(Gtk.ShadowType.IN)
+        self.vue = Gtk.TextView()
+        self.vue.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self.vue.set_accepts_tab(False)
+        self.add(self.vue)
+
+    def get_text(self):
+        b = self.vue.get_buffer()
+        return b.get_text(b.get_start_iter(), b.get_end_iter(), False)
+
+    def set_text(self, texte):
+        self.vue.get_buffer().set_text(texte or "")
+
+    def grab_focus(self):
+        self.vue.grab_focus()
+
+    def grab_focus_without_selecting(self):
+        self.vue.grab_focus()
+
+
 class Haichi(Gtk.Window):
     def __init__(self):
         # Le 17/09/2026 : cette ligne manquait. Sans elle, la fenetre n est
@@ -204,46 +240,18 @@ class Haichi(Gtk.Window):
         self.bouton_bouche.get_style_context().add_class("active")
         self.bouton_bouche.connect("clicked", self._basculer_bouche)
 
-        self.saisie = Gtk.Entry()
-        self.saisie.set_placeholder_text("Pose ta question à Arthur ou tape / ...")
-        self.saisie.connect("activate", lambda *_: self.envoyer())
+        self.saisie = ZoneTexte()
+        # Entree ENVOIE ; Maj+Entree fait un retour a la ligne. Une spec
+        # multi-lignes collee reste donc entiere jusqu'a l'envoi.
+        self.saisie.vue.connect("key-press-event", self._touche_saisie)
+        self.saisie.vue.set_tooltip_text(
+            "Pose ta question a Arthur ou tape / ...  (Maj+Entree = nouvelle ligne)")
         # LE CLIC RAMENE LE CLAVIER. Sans ca, cliquer dans la case donne le
         # curseur a l ecran mais PAS les touches : elles restent dans la
         # fenetre d avant. Mesure du 17/09/2026 : Patrick tapait, et son
         # texte partait dans le terminal.
-        self.saisie.connect("button-press-event",
-                            lambda *_: self.reprendre_le_clavier())
-        self.connect("button-press-event",
-                     lambda *_: self.reprendre_le_clavier())
-        # Et des que la fenetre s affiche, le curseur est deja dans la case :
-        # il peut ecrire sans rien cliquer.
-        self.connect("map-event", lambda *_: self.reprendre_le_clavier())
-        
-        # --- Autosuggestion / Complétion des Slash Commands ---
-        completion = Gtk.EntryCompletion()
-        model_completion = Gtk.ListStore(str)
-        
-        # Collecte dynamique des compétences sous ~/.claude/skills et ~/.agents/skills
-        skills_connaissances = [
-            "/actus-ia", "/agent-ssh", "/analyse", "/berzerk", "/carte-vivante",
-            "/cast", "/circuits", "/concordance", "/courrier", "/delegation-actions",
-            "/etat-serveurs", "/fusion-sessions", "/geole-infinie", "/imprimer",
-            "/intrusions", "/kotodama", "/mes-outils", "/mode-twitch", "/navigateur",
-            "/nommage", "/ovh", "/pilotage-ia", "/poids-disque", "/presentation",
-            "/protection", "/proteger-une-page", "/rapport", "/recherche", "/restauration",
-            "/sage", "/scan", "/snapshot", "/tempest-projection", "/tests-solides",
-            "/video-narree", "/help"
-        ]
-        for sk in sorted(skills_connaissances):
-            model_completion.append([sk])
-            
-        completion.set_model(model_completion)
-        completion.set_text_column(0)
-        # La popup de completion GTK volait le focus clavier a la volée pendant la frappe (17/09/2026).
-        # En désactivant la popup intempestive tout en gardant l inline completion ou le tab, on préserve la totalité de la frappe.
-        completion.set_inline_completion(True)
-        completion.set_popup_completion(False)
-        self.saisie.set_completion(completion)
+        self.saisie.vue.connect("button-press-event",
+                                lambda *_: self.reprendre_le_clavier())
 
         envoyer = Gtk.Button(label="ENVOYER")
         envoyer.get_style_context().add_class("envoyer")
@@ -434,6 +442,19 @@ class Haichi(Gtk.Window):
             pass
         if not pensee:
             self.etiquette_pensee.hide()
+
+    def _touche_saisie(self, widget, event):
+        """Entree ENVOIE ; Maj+Entree fait un retour a la ligne.
+
+        Corrige le 18/09/2026 : sans ca, une spec multi-lignes ne pouvait pas
+        etre saisie, et partait en morceaux.
+        """
+        if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            if event.state & Gdk.ModifierType.SHIFT_MASK:
+                return False          # Maj+Entree : on laisse passer (nouvelle ligne)
+            self.envoyer()
+            return True               # Entree seul : on envoie
+        return False
 
     def envoyer(self):
         question = self.saisie.get_text().strip()

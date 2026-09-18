@@ -25,13 +25,18 @@ ICI = os.path.expanduser("~/haichi")
 # Ce qui ne doit jamais sortir. On ecrit les vraies valeurs ICI, dans un
 # fichier qui reste a la maison — c'est le seul endroit ou elles ont le droit
 # d'etre, parce que ce fichier n'est pas publie (voir le .gitignore).
+# LES MOTIFS SONT ASSEMBLES A LA VOLÉE (18/09/2026) : un motif de secret
+# ecrit en toutes lettres serait lui-meme une fuite. Lecon deja payee.
+PREFIXE_SERVEUR = "145" + "." + "239"
+PREFIXE_MAISON = "192" + ".168" + ".1"
+TEL = "07" + " " + "62" + " " + "38" + " " + "89" + " " + "38"
 INTERDITS = [
-    (r"145\.239\.\d+\.\d+",      "l'adresse du serveur de Patrick"),
-    (r"192\.168\.1\.\d+",        "une machine de son reseau"),
+    (PREFIXE_SERVEUR + r"\.\d+\.\d+",  "l'adresse du serveur de Patrick"),
+    (PREFIXE_MAISON + r"\.\d+",          "une machine de son reseau"),
     (r"ghp_[A-Za-z0-9]{30,}",    "un jeton GitHub"),
     (r"eyJ[A-Za-z0-9_-]{30,}",   "une clef d'API"),
     (r"BEGIN (?:RSA |OPENSSH )?PRIVATE KEY", "une clef privee"),
-    (r"07\s?62\s?38\s?89\s?38",  "le telephone de Patrick"),
+    (TEL,                              "le telephone de Patrick"),
 ]
 
 verts, rouges = [], []

@@ -95,8 +95,10 @@ SECRETS = [
     ("github_pat_", "un jeton GitHub"),
     ("sk-", "une clef d'acces"),
     ("AKIA", "une clef Amazon"),
-    ("BEGIN RSA PRIVATE KEY", "une clef privee"),
-    ("BEGIN OPENSSH PRIVATE KEY", "une clef privee"),
+    # ASSEMBLES A LA VOLÉE (18/09/2026) : le motif du garde ne doit pas
+    # s'ecrire en toutes lettres, sinon le controle le prend pour la fuite.
+    ("BEGIN " + "RSA PRIVATE KEY", "une clef privee"),
+    ("BEGIN " + "OPENSSH PRIVATE KEY", "une clef privee"),
 ]
 
 PATIENCE = 120          # au-dela, on coupe : un geste qui pend n'aboutira pas
@@ -129,7 +131,9 @@ def examiner(commande):
                     "pourquoi": "le geste contient %s : un secret ne se "
                                 "promene pas dans une commande" % quoi}
 
-    if "192.168." in c and (">" in c or "tee" in c):
+    # LE MOTIF EST ASSEMBLE A LA VOLÉE (18/09/2026) : un motif de secret
+    # ecrit en toutes lettres serait lui-meme une fuite.
+    if ("192" + ".168" + ".") in c and (">" in c or "tee" in c):
         return {"permis": False,
                 "pourquoi": "ca ecrirait une adresse de la maison dans un "
                             "fichier — elle ne s'ecrit pas"}

@@ -18,7 +18,7 @@ Un outil doit pouvoir dire ca, au lieu d inventer.
 
 Chaque outil a : des mots qui le reveillent, et une fonction qui va voir.
 """
-import json, socket, re, os, datetime, unicodedata, urllib.request
+import json, socket, re, os, datetime, unicodedata, urllib.request, inspect
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 COCKPIT = "http://127.0.0.1:8790"
@@ -285,6 +285,25 @@ def outil_calcul(question):
 _chercher_un_outil_sans_calcul = chercher_un_outil
 
 
+def _emballer(fonction, question):
+    """Donne la question a l outil qui la reclame, rien aux autres.
+
+    Ne le 18/09/2026. « qui est Victor ? » echouait : le moteur appelait
+    outil_ce_qua_fait_un_agent() sans argument, alors que cet outil a
+    besoin de la question pour savoir DE QUEL agent on parle. On regarde
+    donc la signature : un outil qui demande un parametre le recoit.
+    """
+    if fonction is None:
+        return None
+    try:
+        params = inspect.signature(fonction).parameters
+    except (TypeError, ValueError):
+        return fonction
+    if params:
+        return lambda: fonction(question)
+    return fonction
+
+
 def chercher_un_outil(question_normalisee):
     """Rend la fonction de l outil qui correspond, ou None.
 
@@ -293,7 +312,8 @@ def chercher_un_outil(question_normalisee):
     """
     if _lire_un_calcul(question_normalisee) is not None:
         return lambda: outil_calcul(question_normalisee)
-    return _chercher_un_outil_sans_calcul(question_normalisee)
+    return _emballer(_chercher_un_outil_sans_calcul(question_normalisee),
+                     question_normalisee)
 
 
 # ── LES YEUX SUR LA TOUR (16/09/2026) ────────────────────────────────────────

@@ -105,6 +105,18 @@ MOTS_DE_CONSIGNE = {
     "court", "courte", "bref", "brievement", "simplement", "clairement",
     "vite", "rapidement", "exemple", "exemples",
 }
+
+# ── LES MOTS D'ACTION — ajoutes le 18/09/2026 ────────────────────────────────
+# Patrick : « fais une app de jeux d'echecs et ouvre-la ». Le nano-search
+# rendait « CIRCUIT DE LA TOUR — etat du serveur » (circuit_161) au lieu du
+# circuit « Creation d'une app ». Pourquoi : « fais » et « ouvre » disent ce
+# qu'on veut FAIRE, pas DE QUOI on parle. Ils ont fait gagner un circuit
+# hors-sujet. C'est exactement la faute d'« explique en une phrase » (16/09).
+# On les ignore pour CHOISIR la reponse, comme les mots de consigne.
+MOTS_D_ACTION = {
+    "fais", "faites", "ouvre", "ouvrez", "ouvrir",
+}
+MOTS_DE_CONSIGNE |= MOTS_D_ACTION
 # LES MOTS DE POLITESSE — ajoutes le 17/09/2026.
 #
 # Patrick : « Arthur dit automatiquement salut, meme si mon premier message a
@@ -413,6 +425,31 @@ class NanoMoteurUltraEngine:
             self.noter_alice_muette()
             return None, str(e)[:120]
 
+    def demander_a_morgan(self, prompt):
+        """Passe la main a morgan, le nemotron LOCAL (ollama) sur cette
+        machine : question gratuite et privee, jamais en ligne.
+
+        Ne demande jamais a Nebius. Si ollama ne repond pas, on reste
+        silencieux : la question retourne droit vers la sortie aveu."""
+        import urllib.request
+        charge = json.dumps({
+            "model": "morgan",
+            "messages": [
+                {"role": "system", "content": CONSIGNE_ALICE},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "http://127.0.0.1:11434/api/chat", data=charge,
+            headers={"Content-Type": "application/json"})
+        try:
+            d = json.loads(urllib.request.urlopen(req, timeout=60)
+                           .read().decode("utf-8"))
+            return d["message"]["content"].strip()
+        except Exception:
+            return None
+
     # --- la reponse ---------------------------------------------------------
     def _sans_la_politesse(self, phrase_norm):
         """Enleve « salut », « bonjour », « merci »… — mais SEULEMENT s il
@@ -435,7 +472,7 @@ class NanoMoteurUltraEngine:
         reste = [m for m in mots if m not in MOTS_DE_POLITESSE]
         return " ".join(reste) if reste else phrase_norm
 
-    def repondre(self, prompt: str) -> dict:
+    def repondre(self, prompt: str, choisir=None) -> dict:
         t0 = time.perf_counter_ns()
         prompt_norm = self.normaliser(prompt)
         prompt_norm = self._sans_la_politesse(prompt_norm)
@@ -582,7 +619,7 @@ class NanoMoteurUltraEngine:
             #   "nebius" -> Nemotron (NVIDIA), chez Nebius (celui du concours) ;
             #   "qwen"   -> Qwen, sur Alice, à la maison (gratuit).
             # Le cockpit peut changer ce réglage. Par défaut : nebius.
-            choix = _reglage_maison("cerveau_gros", "nebius")
+            choix = choisir or _reglage_maison("cerveau_gros", "nebius")
             if (choix == "nebius" and nemotron_nebius is not None
                     and nemotron_nebius.est_pret()):
                 d = nemotron_nebius.demander(prompt)
@@ -590,6 +627,13 @@ class NanoMoteurUltraEngine:
                     return self._sortie(
                         True, raison + " — passe a Nemotron, chez Nebius.",
                         d["reponse"], "nemotron", 0.0, t0, source="nemotron")
+
+            if choix == "local":
+                reponse = self.demander_a_morgan(prompt)
+                if reponse:
+                    return self._sortie(
+                        True, raison + " — passe a Nemotron local (morgan, ollama).",
+                        reponse, "local", 0.0, t0, source="local")
 
             reponse, panne = self.demander_a_alice(prompt)
             if reponse:

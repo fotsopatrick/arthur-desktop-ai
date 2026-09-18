@@ -94,32 +94,32 @@ ETAPES = "".join("<li>%s</li>" % e for e in FICHE["ou_le_fabriquer"])
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Le jeton de GitHub</title><style>
-*{{box-sizing:border-box}} body{{margin:0;background:%s;color:%s;
+*{box-sizing:border-box} body{margin:0;background:%s;color:%s;
  font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
- display:flex;justify-content:center;padding:48px 20px}}
-.boite{{width:100%%;max-width:620px}}
-h1{{font-size:28px;margin:0 0 6px}} .sous{{opacity:.65;margin:0 0 28px}}
-.carte{{background:%s;border:1px solid %s;border-radius:14px;padding:22px;
- margin-bottom:18px}}
-.etat{{display:flex;align-items:center;gap:10px;font-size:17px}}
-.pastille{{width:11px;height:11px;border-radius:50%%;flex:0 0 auto}}
-.vert{{background:#3fb950}} .rouge{{background:#f85149}} .gris{{background:#6e7681}}
-label{{display:block;font-size:14px;opacity:.65;margin:0 0 8px}}
-input{{width:100%%;padding:13px 15px;border-radius:10px;border:1px solid %s;
- background:%s;color:%s;font:15px ui-monospace,monospace}}
-input:focus{{outline:none;border-color:%s}}
-.rangee{{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}}
-button{{padding:12px 20px;border-radius:10px;border:0;font-size:15px;
- font-weight:600;cursor:pointer;background:%s;color:%s}}
-button.gris{{background:%s;color:%s;border:1px solid %s}}
-button:disabled{{opacity:.5;cursor:wait}}
-.mot{{margin-top:16px;padding:13px 15px;border-radius:10px;font-size:15px;
- display:none;white-space:pre-wrap}}
-.mot.bien{{display:block;background:#0f2a16;border:1px solid #2ea043;color:#7ee787}}
-.mot.mal{{display:block;background:#2d1113;border:1px solid #f85149;color:#ffa198}}
-.aide{{opacity:.5;font-size:14px;margin:8px 0 0}}
-ol{{opacity:.75;font-size:15px;padding-left:22px;margin:10px 0 0}}
-ol li{{margin-bottom:7px}}
+ display:flex;justify-content:center;padding:48px 20px}
+.boite{width:100%%;max-width:620px}
+h1{font-size:28px;margin:0 0 6px} .sous{opacity:.65;margin:0 0 28px}
+.carte{background:%s;border:1px solid %s;border-radius:14px;padding:22px;
+ margin-bottom:18px}
+.etat{display:flex;align-items:center;gap:10px;font-size:17px}
+.pastille{width:11px;height:11px;border-radius:50%%;flex:0 0 auto}
+.vert{background:#3fb950} .rouge{background:#f85149} .gris{background:#6e7681}
+label{display:block;font-size:14px;opacity:.65;margin:0 0 8px}
+input{width:100%%;padding:13px 15px;border-radius:10px;border:1px solid %s;
+ background:%s;color:%s;font:15px ui-monospace,monospace}
+input:focus{outline:none;border-color:%s}
+.rangee{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+button{padding:12px 20px;border-radius:10px;border:0;font-size:15px;
+ font-weight:600;cursor:pointer;background:%s;color:%s}
+button.gris{background:%s;color:%s;border:1px solid %s}
+button:disabled{opacity:.5;cursor:wait}
+.mot{margin-top:16px;padding:13px 15px;border-radius:10px;font-size:15px;
+ display:none;white-space:pre-wrap}
+.mot.bien{display:block;background:#0f2a16;border:1px solid #2ea043;color:#7ee787}
+.mot.mal{display:block;background:#2d1113;border:1px solid #f85149;color:#ffa198}
+.aide{opacity:.5;font-size:14px;margin:8px 0 0}
+ol{opacity:.75;font-size:15px;padding-left:22px;margin:10px 0 0}
+ol li{margin-bottom:7px}
 </style></head><body><div class="boite">
 <h1>Le jeton de GitHub</h1>
 <p class="sous">C'est %s pour %s.</p>
@@ -142,23 +142,23 @@ ol li{{margin-bottom:7px}}
 <div class="carte"><label>Si tu dois en fabriquer un</label><ol>%s</ol></div>
 </div><script>
 const $=(i)=>document.getElementById(i);
-function dire(t,b){{const m=$('mot');m.textContent=t;m.className='mot '+(b?'bien':'mal');}}
-async function rafraichir(){{
+function dire(t,b){const m=$('mot');m.textContent=t;m.className='mot '+(b?'bien':'mal');}
+async function rafraichir(){
   const r=await (await fetch('/etat')).json();
   $('pastille').className='pastille '+(r.posee?'vert':'rouge');
   $('etat').textContent=r.posee
     ?'C\\'est range (ca finit par '+r.apercu+', '+r.longueur+' caracteres).'
-    :"Rien n'est range. Je ne peux pas continuer sans.";}}
-$('voir').onclick=()=>{{const c=$('v');c.type=c.type==='password'?'text':'password';
-  $('voir').textContent=c.type==='password'?'Montrer ce que je tape':'Cacher';}};
-$('ranger').onclick=async()=>{{const r=await (await fetch('/ranger',{{method:'POST',
-  headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{valeur:$('v').value}})}})).json();
-  dire(r.texte,r.ok); if(r.ok)$('v').value=''; rafraichir();}};
-$('essayer').onclick=async(e)=>{{e.target.disabled=true;dire("Je demande, patiente…",true);
-  const r=await (await fetch('/essayer',{{method:'POST'}})).json();
-  dire(r.texte,r.ok);e.target.disabled=false;}};
-$('effacer').onclick=async()=>{{const r=await (await fetch('/effacer',{{method:'POST'}})).json();
-  dire(r.texte,r.ok);rafraichir();}};
+    :"Rien n'est range. Je ne peux pas continuer sans.";}
+$('voir').onclick=()=>{const c=$('v');c.type=c.type==='password'?'text':'password';
+  $('voir').textContent=c.type==='password'?'Montrer ce que je tape':'Cacher';};
+$('ranger').onclick=async()=>{const r=await (await fetch('/ranger',{method:'POST',
+  headers:{'Content-Type':'application/json'},body:JSON.stringify({valeur:$('v').value})})).json();
+  dire(r.texte,r.ok); if(r.ok)$('v').value=''; rafraichir();};
+$('essayer').onclick=async(e)=>{e.target.disabled=true;dire("Je demande, patiente…",true);
+  const r=await (await fetch('/essayer',{method:'POST'})).json();
+  dire(r.texte,r.ok);e.target.disabled=false;};
+$('effacer').onclick=async()=>{const r=await (await fetch('/effacer',{method:'POST'})).json();
+  dire(r.texte,r.ok);rafraichir();};
 rafraichir();
 </script></body></html>""" % (FOND, TEXTE, CARTE, BORD, BORD, FOND, TEXTE, ACCENT,
   ACCENT, FOND, CARTE, TEXTE, BORD, FICHE["quoi"], FICHE["a_quoi_ca_sert"],
