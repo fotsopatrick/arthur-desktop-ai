@@ -304,9 +304,11 @@ class Haichi(Gtk.Window):
             if not self.rabattu:
                 self.rouleau.hide()
                 self._barre.hide()
-                self.dessin.set_size_request(58, 58)
+                # PETIT ROND (Patrick, 18/09/2026) : « la taille d'un double
+                # d'un bouton connecte en ligne ». Avant 58/74, trop gros.
+                self.dessin.set_size_request(28, 28)
                 self.dessin.get_style_context().add_class("dessin-rond")
-                self.resize(74, 74)
+                self.resize(34, 34)
                 self.bouton_rabattre.set_label("△")
                 self.bouton_rabattre.set_tooltip_text("Rouvrir")
                 self.rabattu = True
