@@ -79,7 +79,7 @@ entry selection { background-color: rgba(56,189,248,.45); }
 .rabattre {
   background-image: none; background-color: rgba(15,23,42,.55);
   color: #cbd5e1; border-radius: 50%; border: 1px solid rgba(148,163,184,.5);
-  padding: 0; font-size: 11px; min-width: 18px; min-height: 18px;
+  padding: 0; font-size: 11px; min-width: 12px; min-height: 12px;
 }
 .rabattre:hover { background-color: rgba(56,189,248,.4); color: #ffffff; }
 .dessin-rond {
@@ -178,6 +178,7 @@ class Haichi(Gtk.Window):
         colonne.set_margin_start(10); colonne.set_margin_end(10)
         colonne.set_margin_top(10);   colonne.set_margin_bottom(10)
         self.add(colonne)
+        self._colonne = colonne
 
         # la bulle, en haut
         self.boite_bulle = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -306,15 +307,21 @@ class Haichi(Gtk.Window):
                 self._barre.hide()
                 # PETIT ROND (Patrick, 18/09/2026) : « la taille d'un double
                 # d'un bouton connecte en ligne ». Avant 58/74, trop gros.
-                self.dessin.set_size_request(28, 28)
+                self.dessin.set_size_request(24, 24)
                 self.dessin.get_style_context().add_class("dessin-rond")
-                self.resize(34, 34)
+                # ON RETIRE LES MARGES : sans ca, la fenetre ne descend pas
+                # sous (dessin + 20 px de marge) et reste « grosse ».
+                for cote in ("start", "end", "top", "bottom"):
+                    getattr(self._colonne, "set_margin_" + cote)(0)
+                self.resize(28, 28)
                 self.bouton_rabattre.set_label("△")
                 self.bouton_rabattre.set_tooltip_text("Rouvrir")
                 self.rabattu = True
             else:
                 self.dessin.set_size_request(150, 166)
                 self.dessin.get_style_context().remove_class("dessin-rond")
+                for cote in ("start", "end", "top", "bottom"):
+                    getattr(self._colonne, "set_margin_" + cote)(10)
                 self.rouleau.show()
                 self._barre.show()
                 self.resize(LARGEUR, HAUTEUR)
