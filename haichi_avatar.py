@@ -804,9 +804,18 @@ if __name__ == "__main__":
     # Ca sert a prouver qu il repond VRAIMENT dans sa fenetre, pas seulement
     # qu un serveur rend 200.
     question_de_depart = " ".join(sys.argv[1:]).strip()
-    # sur l ecran de DROITE (celui qui commence a 1920), en bas
-    X = 1920 + 1920 - LARGEUR - 40
-    Y = 1080 - HAUTEUR - 90
+    # En bas a droite de l'ecran LE PLUS A DROITE, quel qu'il soit (29/09).
+    # Avant : X = 1920 + 1920 - ..., ecrit pour les deux ecrans de Patrick ;
+    # sur un seul ecran de 1920, la fenetre s'ouvrait hors de la vue.
+    try:
+        affichage = Gdk.Display.get_default()
+        zones = [affichage.get_monitor(i).get_workarea()
+                 for i in range(affichage.get_n_monitors())]
+        z = max(zones, key=lambda g: g.x + g.width)
+        X = z.x + z.width - LARGEUR - 40
+        Y = z.y + z.height - HAUTEUR - 90
+    except Exception:
+        X, Y = 1920 - LARGEUR - 40, 1080 - HAUTEUR - 90
     h = Haichi()
     h.move(X, Y)
     h.show_all()
