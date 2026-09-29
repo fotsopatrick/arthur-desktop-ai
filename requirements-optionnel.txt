@@ -1,0 +1,6 @@
+# Arthur marche SANS rien installer. Ceci est optionnel :
+#   pip install -r requirements-optionnel.txt
+# langgraph : arthur_graphe.py orchestre ses etages avec LangGraph (sinon, un
+#             executant interne suit exactement le meme graphe) et sait le
+#             dessiner (--dessin).
+langgraph>=1.0

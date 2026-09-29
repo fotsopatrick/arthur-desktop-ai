@@ -47,6 +47,14 @@ try:
 except Exception:
     nemotron_nebius = None
 
+# LES DOCUMENTS LOCAUX (29/09/2026) : rag_local.py cherche dans documents/,
+# sur cette machine, sans reseau. Il sert quand Alice ou « rag_maison » ne
+# sont pas la — c'est-a-dire chez tout le monde sauf Patrick.
+try:
+    import rag_local
+except Exception:
+    rag_local = None
+
 ICI = os.path.dirname(os.path.abspath(__file__))
 # OU ARTHUR TROUVE SON SAVOIR — repare le 17/09/2026.
 #
@@ -425,8 +433,50 @@ class NanoMoteurUltraEngine:
     def noter_alice_muette():
         ALICE_MUETTE_JUSQUA[0] = time.time() + ALICE_REPOS
 
+    def _chercher_localement(self, question):
+        """Rend (extraits, combien) depuis rag_local, ou (None, 0).
+        Meme garde qu'ailleurs : au moins MOTS_RETROUVES_MINIMUM mots
+        importants de la question dans les extraits. Retient le meilleur
+        morceau dans self._citation, pour le citer si aucun gros cerveau ne
+        peut lire les extraits (29/09/2026)."""
+        if rag_local is None:
+            return None, 0
+        try:
+            morceaux = rag_local.chercher(question[:300], k=3)
+        except Exception:
+            return None, 0
+        if not morceaux:
+            return None, 0
+        dedans = self.normaliser("\n\n".join(m["texte"] for m in morceaux))
+        importants = [m for m in self.normaliser(question).split()
+                      if m not in MOTS_VIDES and len(m) >= 5]
+        retrouves = [m for m in importants if m in dedans]
+        if len(retrouves) < MOTS_RETROUVES_MINIMUM:
+            return None, 0
+        self._citation = (morceaux[0]["source"], morceaux[0]["texte"])
+        extraits = "\n\n".join("[%s] %s" % (m["source"], m["texte"][:700]) for m in morceaux)
+        return extraits, len(retrouves)
+
+    def _citer(self, raison, t0):
+        """Aucun gros cerveau n'a pu lire les extraits : on CITE le meilleur,
+        avec sa source, au lieu d'inventer ou de se taire."""
+        source, texte = self._citation
+        return self._sortie(
+            True, raison + " — pas de gros cerveau pour resumer : je cite le document.",
+            "D'après « %s » :\n\n%s" % (source, texte[:700].strip()),
+            "documents", 0.0, t0, source="documents-locaux")
+
     def chercher_dans_les_documents(self, question):
-        """Rend (extraits, combien) ou (None, 0) si rien d assez pertinent."""
+        """Rend (extraits, combien) ou (None, 0) si rien d assez pertinent.
+        D'abord la memoire d'Alice (si on a le droit d'appeler le reseau),
+        puis les documents de cette machine."""
+        if not getattr(self, "_sans_reseau", False):
+            extraits, combien = self._chercher_chez_alice(question)
+            if extraits:
+                return extraits, combien
+        return self._chercher_localement(question)
+
+    def _chercher_chez_alice(self, question):
         if time.time() < DOCUMENTS_MUETS_JUSQUA[0]:
             return None, 0
         import urllib.request, urllib.parse
@@ -466,7 +516,8 @@ class NanoMoteurUltraEngine:
         planter Arthur, et une PANNE laisse une trace (self._panne_maison)."""
         self._panne_maison = ""
         if not RAG_MAISON:
-            return None, 0
+            # (29/09) pas de « rag_maison » configure : les documents locaux
+            return self._chercher_localement(question)
         import subprocess
         try:
             r = subprocess.run(list(RAG_MAISON) + ["--json-chercher", question[:300]],
@@ -496,6 +547,8 @@ class NanoMoteurUltraEngine:
 
     def demander_a_alice(self, question, extraits=None):
         """On passe la main a Qwen sur Alice. Rend (reponse, panne)."""
+        if getattr(self, "_sans_reseau", False):
+            return None, "mode sans cerveau : aucun appel reseau"
         if self.alice_est_injoignable():
             return None, "Alice est injoignable (constate il y a moins de 30 secondes)."
         import urllib.request
@@ -612,7 +665,14 @@ class NanoMoteurUltraEngine:
             pass
 
     def repondre(self, prompt: str, choisir=None) -> dict:
+        """choisir : le gros cerveau (« qwen », « local », « nebius »), ou
+        « aucun » : Arthur repond avec ce qu'il a SUR CETTE MACHINE (regles,
+        outils, documents locaux) et n'appelle personne. S'il ne sait pas, la
+        sortie porte peut_monter=True : c'est le graphe (arthur_graphe.py)
+        qui decide alors de monter au gros cerveau."""
         t0 = time.perf_counter_ns()
+        self._sans_reseau = (choisir == "aucun")
+        self._citation = None
         prompt_norm = self.normaliser(prompt)
         prompt_norm = self._sans_la_politesse(prompt_norm)
 
@@ -759,6 +819,8 @@ class NanoMoteurUltraEngine:
                                 True,
                                 raison + f" — {combien} mot(s) retrouve(s) dans les documents de la maison.",
                                 reponse, "documents", 0.0, t0, source="documents-maison")
+                        if self._citation:
+                            return self._citer(raison, t0)
                 if panne:
                     return self._sortie(
                         False, "Question sur la maison, mais une panne m'empeche de lire : " + str(panne)[:160],
@@ -792,6 +854,8 @@ class NanoMoteurUltraEngine:
                         True,
                         raison + f" — {combien} document(s) trouve(s), lus avant de repondre.",
                         reponse, "documents", 0.0, t0, source="documents")
+                if self._citation:
+                    return self._citer(raison, t0)
 
             # CHARABIA / HORS-SUJET TOTAL : aucun mot connu, aucun document.
             # On n'envoie pas ça au gros cerveau — il inventerait une pirouette
@@ -822,6 +886,12 @@ class NanoMoteurUltraEngine:
             # directement sur le repli local. nemotron_nebius reste importe pour
             # ne rien casser (page_cle_nebius), mais n'est plus jamais appele.
             choix = choisir or _reglage_maison("cerveau_gros", "qwen")
+            if choix == "aucun":
+                # Mode local : on s'arrete ici et on dit qu'on POURRAIT monter.
+                sortie = self._sortie(False, raison + " — mode local : je ne monte pas au gros cerveau.",
+                                      REPLI, None, 0.0, t0, source="aveu")
+                sortie["peut_monter"] = True
+                return sortie
             # RETOUR DE NEMOTRON (24/09/2026) : le concours Nebius × NVIDIA exige
             # Nemotron sur Nebius. Le réglage « nebius » redemande donc à Nemotron
             # quand une clé existe. Sans crédit (402), Arthur le DIT dans sa raison
@@ -884,6 +954,8 @@ class NanoMoteurUltraEngine:
                         item.get("think", "") + f" — la fiche {meilleure} etait un "
                         f"faux positif ({combien} document(s) pertinent(s) lu(s)).",
                         reponse, "documents", 0.0, t0, source="documents")
+                if self._citation:
+                    return self._citer("Fiche %s ecartee (faux positif)" % meilleure, t0)
             # LE TROU REPARE (21/09/2026). La fiche ne couvre pas un mot
             # important de la question (« faille noyau Debian » -> la fiche
             # veille_cybersecurite ne parle pas de Debian), ET le RAG n a pas
