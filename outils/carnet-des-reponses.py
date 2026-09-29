@@ -50,7 +50,9 @@ def _cle(question):
     t = unicodedata.normalize("NFD", str(question or "").lower())
     t = "".join(c for c in t if not unicodedata.combining(c))
     t = re.sub(r"[^a-z0-9 ]", " ", t)
-    mots = [m for m in t.split() if m not in MOTS_VIDES and len(m) > 1]
+    # (29/09) les chiffres comptent : « la VM 1 » et « la VM 2 » ne sont pas
+    # la meme question, et un « oui » a l'une ne vaut pas pour l'autre.
+    mots = [m for m in t.split() if m not in MOTS_VIDES and (len(m) > 1 or m.isdigit())]
     return " ".join(sorted(set(mots)))
 
 
@@ -98,6 +100,12 @@ def deja_repondu(question, chemin=None):
         if siens == mots:
             return x.get("reponse")
         # Une question reformulee garde l essentiel de ses mots.
+        # (29/09) ... mais n'en REMPLACE aucun : « depot prive » et « depot
+        # public » partageaient 75 % de leurs mots, et la reponse a l'une
+        # etait rendue pour l'autre. On n'accepte qu'un mot en plus ou en
+        # moins, jamais un mot change.
+        if not (mots <= siens or siens <= mots):
+            continue
         communs = len(mots & siens)
         score = communs / max(len(mots), len(siens))
         if score > score_max:

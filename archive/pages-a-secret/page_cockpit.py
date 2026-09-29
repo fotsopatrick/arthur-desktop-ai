@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Page fabriquee le 16/09/2026 par ~/outils/page-a-secret.py — service cockpit."""
-import json, os, urllib.error, urllib.request
+import base64, hashlib, hmac, json, os, urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-PORT = 8802
+PORT = 8803   # (29/09) 8802 est deja pris par page_stripe.py
 SERVICE = 'cockpit'
 FICHE = {'nom': 'ton cockpit', 'symbole': '🛡', 'quoi': 'le mot de passe', 'a_quoi_ca_sert': 'fermer ton cockpit à clef sur internet — toi seul entres', 'debuts': [], 'longueur_mini': 8, 'exemple': 'au moins 8 caractères, que tu retiens', 'essai': None, 'ou_le_fabriquer': ['Choisis-le toi-même, là, maintenant.', 'Au moins 8 caractères. Mélange lettres et chiffres.', 'Ne reprends pas un mot de passe utilisé ailleurs.', 'Il ne sera JAMAIS écrit en clair : seulement son empreinte.'], 'couleurs': ('#001A2B', '#052B42', '#2c3543', '#F9F9FF', '#E0FF4F')}
 COFFRE = os.path.expanduser("~/.secrets/secret-cockpit.txt")
@@ -17,7 +17,26 @@ def etat():
         return {"posee": False, "apercu": "", "longueur": 0}
     if not v:
         return {"posee": False, "apercu": "", "longueur": 0}
-    return {"posee": True, "apercu": "…" + v[-4:], "longueur": len(v)}
+    # (29/09) le coffre ne garde qu'une empreinte : rien a montrer du secret
+    return {"posee": True, "apercu": "(empreinte)", "longueur": 0}
+
+
+def empreinte(mot, sel=None):
+    """scrypt$<sel b64>$<empreinte b64> — jamais le mot de passe lui-meme."""
+    sel = sel or os.urandom(16)
+    h = hashlib.scrypt(mot.encode("utf-8"), salt=sel, n=2 ** 14, r=8, p=1)
+    return "scrypt$%s$%s" % (base64.b64encode(sel).decode(),
+                             base64.b64encode(h).decode())
+
+
+def verifier(mot, ligne):
+    """Vrai si « mot » correspond a l'empreinte rangee dans le coffre."""
+    try:
+        _, sel, h = ligne.strip().split("$")
+        attendu = empreinte(mot, base64.b64decode(sel)).split("$")[2]
+        return hmac.compare_digest(attendu, h)
+    except (ValueError, TypeError):
+        return False
 
 
 def ranger(valeur):
@@ -36,8 +55,11 @@ def ranger(valeur):
                        "que ca. Verifie que tu as copie la ligne entiere." % len(v))
     os.makedirs(os.path.dirname(COFFRE), exist_ok=True)
     os.chmod(os.path.dirname(COFFRE), 0o700)
+    # (29/09) La fiche promettait « JAMAIS ecrit en clair : seulement son
+    # empreinte » mais le mot de passe etait ecrit tel quel. On ecrit
+    # maintenant une empreinte scrypt salee, verifiable avec verifier().
     with open(COFFRE, "w", encoding="utf-8") as f:
-        f.write(v + "\n")
+        f.write(empreinte(v) + "\n")
     os.chmod(COFFRE, 0o600)
     return True, "C'est range. Seul toi peux lire ce fichier."
 
@@ -52,9 +74,9 @@ def essayer():
     if not v:
         return {"ok": False, "texte": "Rien dans le coffre."}
     if not essai:
-        return {"ok": True, "texte": ("C'est range (%d caracteres). Je ne sais pas "
-                "encore essayer ce service tout seul, alors je ne te promets pas "
-                "qu'il marche." % len(v))}
+        return {"ok": True, "texte": ("C'est range, sous forme d'empreinte. Je ne "
+                "sais pas encore essayer ce service tout seul, alors je ne te "
+                "promets pas qu'il marche.")}
     nom, _, val = essai["entete"].partition(": ")
     d = urllib.request.Request(essai["adresse"],
         headers={nom: val.format(s=v), "User-Agent": "arthur",
@@ -278,7 +300,31 @@ class Poste(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def _serrure(self, ecrire):
+        """(29/09) Seule CETTE machine, par CETTE page, a le droit d'entrer.
+
+        Ecouter sur 127.0.0.1 ne suffit pas : n'importe quel site ouvert dans
+        le navigateur peut envoyer un POST ici (sans meme lire la reponse),
+        et un domaine « rebinde » vers 127.0.0.1 passe pour local.
+          - Host doit etre 127.0.0.1:PORT ou localhost:PORT (anti-rebinding) ;
+          - pour ecrire, Origin (ou Referer) doit etre cette meme page."""
+        port = self.server.server_address[1]   # le port vraiment ecoute
+        hotes = {"127.0.0.1:%d" % port, "localhost:%d" % port}
+        hote = (self.headers.get("Host") or "").lower()
+        if hote not in hotes:
+            return False
+        if not ecrire:
+            return True
+        origine = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if "://" not in origine:
+            return False
+        schema, reste = origine.split("://", 1)
+        return schema == "http" and reste.split("/", 1)[0].lower() == hote
+
     def do_GET(self):
+        if not self._serrure(False):
+            self.send_error(403, "Hote inconnu : requete rejetee.")
+            return
         if self.path in ("/", "/index.html"):
             return self._envoyer(PAGE, "text/html")
         if self.path == "/etat":
@@ -288,27 +334,34 @@ class Poste(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self):
-        if self.path == "/api/arthur-action":
+        if not self._serrure(True):
+            self.send_error(403, "Origine inconnue : requete rejetee.")
+            return
+        # (29/09) Ce do_POST avait ete ecrase par l'ancien « /api/arthur-action »
+        # (appelait self._envoi, qui n'existe pas) : ranger/essayer/effacer
+        # rendaient tous une erreur. On remet le guichet de la page.
+        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            d = json.loads(self.rfile.read(n) if n else b"{}")
+        except ValueError:
+            d = {}
+        if self.path == "/ranger":
+            ok, texte = ranger(d.get("valeur"))
+            return self._envoyer(json.dumps({"ok": ok, "texte": texte}))
+        if self.path == "/essayer":
+            return self._envoyer(json.dumps(essayer()))
+        if self.path == "/effacer":
             try:
-                length = int(self.headers.get("Content-Length", 0))
-                body = __import__("json").loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
-                prompt = body.get("prompt", "")
-                import time, subprocess
-                cle_tache = "arthur-" + str(int(time.time()))
-                # (24/09) SANS shell : le prompt vient de l'exterieur (injection de commande sinon)
-                subprocess.run(["tdb", "ajouter", cle_tache, "--titre", prompt, "--theme", "Arthur", "--etat", "encours"],
-                               env=dict(os.environ, TDB_SESSION="plan-tour-2026"), capture_output=True)
-                livrable_path = f"{os.path.expanduser('~')}/livrables/arthur_resultat_{cle_tache}.txt"
-                with open(livrable_path, "w", encoding="utf-8") as f_out:
-                    f_out.write(f"LIVRABLE EXÉCUTÉ PAR ARTHUR EN BAS À DROITE\n----------------------------------------\nTâche reçue : {prompt}\nDate : {time.ctime()}\nStatut : Exécuté et validé par La Tour.")
-                res_garde = subprocess.run(["python3", os.path.expanduser("~/.claude/portes/garde-zone-livrables.py"), "Arthur", livrable_path], capture_output=True, text=True)
-                if res_garde.returncode == 0:
-                    subprocess.run(["tdb", "etat", cle_tache, "fait", "--detail", f"Livrable dans {livrable_path}"], env=dict(os.environ, TDB_SESSION="plan-tour-2026"), capture_output=True)
-                    res_json = {"ok": True, "prompt": prompt, "livrable": livrable_path, "message": "Tâche exécutée et validée par la porte !"}
-                else:
-                    res_json = {"ok": False, "raison": res_garde.stdout.strip() or res_garde.stderr.strip()}
-                return self._envoi(200, __import__("json").dumps(res_json, ensure_ascii=False), "application/json; charset=utf-8")
-            except Exception as e:
-                return self._envoi(500, __import__("json").dumps({"ok": False, "raison": str(e)}), "application/json")
-        return self._envoi(404, '{"error": "Non trouvé"}', "application/json")
+                os.remove(COFFRE)
+                return self._envoyer(json.dumps({"ok": True, "texte": "Efface."}))
+            except FileNotFoundError:
+                return self._envoyer(json.dumps({"ok": True, "texte": "Il n'y avait rien."}))
+        self.send_error(404)
 
+    def log_message(self, *a):
+        pass
+
+
+if __name__ == "__main__":
+    print("%s -> http://127.0.0.1:%d" % ('Le mot de passe du cockpit', PORT), flush=True)
+    ThreadingHTTPServer(("127.0.0.1", PORT), Poste).serve_forever()

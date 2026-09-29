@@ -42,18 +42,28 @@ except ImportError:
 
 
 def _chemin(nom):
-    dossier = os.environ.get("HAICHI_SAVOIR_DIR") or os.getcwd()
+    # (29/09) Par defaut, le dossier du DEPOT — celui que lit le moteur —
+    # et non le dossier courant : lance d'ailleurs (client MCP), le garde
+    # ecrivait un registre qu'Arthur ne voyait jamais.
+    dossier = os.environ.get("HAICHI_SAVOIR_DIR") or \
+        os.path.dirname(os.path.abspath(__file__))
     return os.path.join(dossier, nom)
+
+
+def _ecrire_json(chemin, donnees):
+    """Ecriture atomique (voir ecriture_sure.py)."""
+    from ecriture_sure import ecrire_json
+    ecrire_json(chemin, donnees)
 
 
 def _charger_registre():
     for nom in ("registre_connaissances.json", "registre_exemple.json"):
         chemin = _chemin(nom)
         if os.path.exists(chemin):
-            try:
-                return json.load(open(chemin, encoding="utf-8")), chemin
-            except Exception:
-                continue
+            # (29/09) Un registre de travail illisible ne doit PAS ceder la
+            # place a l'exemple : _valide reecrirait ensuite l'exemple par-
+            # dessus le savoir de travail, qui serait perdu. On s'arrete.
+            return json.load(open(chemin, encoding="utf-8")), chemin
     return {}, _chemin("registre_connaissances.json")
 
 
@@ -81,14 +91,12 @@ def _refuse(registre_attente, fiche, raison, chemin_attente):
         except Exception:
             quar = []
     quar.append({**fiche, "motif_refus": raison, "date_refus": time.strftime("%Y-%m-%d")})
-    with open(quin, "w", encoding="utf-8") as f:
-        json.dump(quar, f, ensure_ascii=False, indent=1)
+    _ecrire_json(quin, quar)
 
     if registre_attente:
         attente, _ = registre_attente
         attente = [f for f in attente if f.get("_lacune") != fiche.get("_lacune")]
-        with open(chemin_attente, "w", encoding="utf-8") as f:
-            json.dump(attente, f, ensure_ascii=False, indent=1)
+        _ecrire_json(chemin_attente, attente)
 
     print("REFUS : %s" % raison)
     return 1
@@ -102,7 +110,10 @@ def _valide(registre, chemin_registre, fiche, registre_attente, chemin_attente):
             cle = k
             break
     if cle is None:
-        cle = "apprentissage_%s" % int(time.time())
+        # time_ns : deux fiches validees dans la meme seconde ne s'ecrasent plus
+        cle = "apprentissage_%s" % time.time_ns()
+        while cle in registre:
+            cle += "_"
     registre[cle] = {
         "mots": fiche["mots"],
         "think": fiche["think"],
@@ -111,14 +122,12 @@ def _valide(registre, chemin_registre, fiche, registre_attente, chemin_attente):
         "date_capture": fiche.get("date_capture", ""),
         "confiance": _confiance(fiche),
     }
-    with open(chemin_registre, "w", encoding="utf-8") as f:
-        json.dump(registre, f, ensure_ascii=False, indent=1)
+    _ecrire_json(chemin_registre, registre)
 
     if registre_attente:
         attente, _ = registre_attente
         attente = [f for f in attente if f.get("_lacune") != fiche.get("_lacune")]
-        with open(chemin_attente, "w", encoding="utf-8") as f:
-            json.dump(attente, f, ensure_ascii=False, indent=1)
+        _ecrire_json(chemin_attente, attente)
     print("VALIDE : fiche ecrite dans le registre (%s)" % cle)
     return 0
 
@@ -162,6 +171,12 @@ def _confiance(fiche):
 
 
 def juger(fiche, registre, registre_attente, chemin_attente):
+    # PORTE 0 (29/09) : une fiche sans reponse ou sans mots n'est pas un savoir.
+    # Une reponse vide ne « contredisait » rien et passait toutes les portes.
+    if not str(fiche.get("answer") or "").strip() or not fiche.get("mots"):
+        return _refuse(registre_attente, fiche, "fiche sans reponse ou sans mots",
+                       chemin_attente)
+
     # PORTE 1 : source datée obligatoire.
     source = (fiche.get("source") or "").strip()
     if not source or source.lower() in ("sans source", "none", "inconnu"):
@@ -194,6 +209,20 @@ def juger(fiche, registre, registre_attente, chemin_attente):
             a_surclasser.append(k)
 
     if a_surclasser:
+        # (29/09) Le connu surclasse n'est plus detruit sans trace : il part
+        # dans la quarantaine, d'ou un humain peut le rendre au registre.
+        quin = _chemin("quarantaine.json")
+        try:
+            quar = json.load(open(quin, encoding="utf-8")) if os.path.exists(quin) else []
+            if not isinstance(quar, list):
+                quar = []
+        except Exception:
+            quar = []
+        for k in a_surclasser:
+            quar.append({**registre[k], "_cle": k,
+                         "motif_refus": "surclasse par une fiche plus fiable",
+                         "date_refus": time.strftime("%Y-%m-%d")})
+        _ecrire_json(quin, quar)
         for k in a_surclasser:
             del registre[k]
 

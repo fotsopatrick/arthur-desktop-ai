@@ -30,7 +30,7 @@ echo "$page" | grep -q "textarea" && juge 1 "la case a commentaire est la" \
 echo "4) UNE REPONSE ENVOYEE ARRIVE-T-ELLE DANS LE CARNET ?"
 q="epreuve du $(date +%s)"
 r=$(curl -s -m 8 -X POST http://127.0.0.1:$P/repondre \
-     -H "Content-Type: application/json" \
+     -H "Content-Type: application/json" -H "Origin: http://127.0.0.1:$P" \
      -d "{\"question\":\"$q\",\"choix\":\"C\",\"commentaire\":\"range-le ailleurs\"}")
 echo "      la boite dit : ${r:-rien}"
 if python3 ~/outils/carnet-des-reponses.py --lire 2>/dev/null | grep -q "$q"; then
@@ -38,6 +38,13 @@ if python3 ~/outils/carnet-des-reponses.py --lire 2>/dev/null | grep -q "$q"; th
 else
   juge 0 "la reponse n est PAS arrivee dans le carnet"
 fi
+
+echo "4b) UN AUTRE SITE PEUT-IL REPONDRE A LA PLACE DE PATRICK ?"
+c=$(curl -s -o /dev/null -w "%{http_code}" -m 8 -X POST http://127.0.0.1:$P/repondre \
+     -H "Origin: https://site-malveillant.example" \
+     -d '{"question":"piege","choix":"A — oui"}')
+[ "$c" = "403" ] && juge 1 "une page etrangere est refusee (403)" \
+                 || juge 0 "une page etrangere a pu repondre (code $c)"
 
 echo "5) L INTERRUPTEUR DU COCKPIT ETEINT-IL LA PAGE ?"
 touch ~/.claude/portes/.page-des-demandes-eteinte

@@ -56,7 +56,9 @@ def _run(cmd, cwd=None, timeout=10):
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
                            cwd=cwd, timeout=timeout)
-        return r.stdout.strip() if r.returncode == 0 else None
+        # rstrip seulement : l'espace de tete d'une ligne « git status
+        # --porcelain » (« M fichier ») fait partie du format (29/09).
+        return r.stdout.rstrip() if r.returncode == 0 else None
     except Exception:
         return None
 

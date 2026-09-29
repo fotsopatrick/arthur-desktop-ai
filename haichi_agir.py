@@ -50,6 +50,11 @@ GESTES_REFUSES = [
     (r">\s*/dev/(sd|nvme|hd)", "ecrire directement sur un disque"),
     (r"\b:\(\)\s*\{.*\};", "une bombe qui se recopie sans fin"),
     (r"\bkill\s+-9\s+1\b", "tuer le premier programme de la machine"),
+    # (29/09) d'autres facons d'effacer, vues en revue de code
+    (r"\bfind\b.*\s-delete\b", "effacer des fichiers"),
+    (r"\b(shutil\.rmtree|os\.remove|os\.unlink)\b", "effacer des fichiers"),
+    (r"\bbase64\b[^|;]*-d[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|python)",
+     "lancer un texte cache sans l'avoir lu"),
 ]
 
 # Les endroits ou Arthur n'ecrit ni ne lit, quoi qu'on lui dise.
@@ -159,7 +164,9 @@ def accord_donne(reponse):
     Pas « ok », pas « vas-y », pas un silence. Un mot exact, pour qu'un
     accord ne se donne jamais par distraction.
     """
-    return str(reponse or "").strip().lower() in ("oui", "o", "yes")
+    # (29/09) « o » et « yes » passaient aussi, contre la regle ecrite juste
+    # au-dessus : une touche tapee par distraction ne vaut pas un accord.
+    return str(reponse or "").strip().lower() == "oui"
 
 
 def faire(proposition, reponse):
@@ -168,6 +175,13 @@ def faire(proposition, reponse):
     r["fait"] = False
     r["reussi"] = None
     r["sortie"] = ""
+
+    # (29/09) On REEXAMINE le geste ici : faire() croyait sur parole le
+    # champ « permis » de la proposition, qu'un appelant peut fabriquer.
+    verdict = examiner(r.get("commande"))
+    if not verdict["permis"]:
+        r["permis"] = False
+        r["pourquoi_refus"] = verdict["pourquoi"]
 
     if not r.get("permis"):
         r["sortie"] = "REFUS : %s" % r.get("pourquoi_refus", "geste interdit")

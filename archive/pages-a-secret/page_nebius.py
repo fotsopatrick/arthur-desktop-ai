@@ -6,7 +6,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 PORT = 8801
 SERVICE = 'nebius'
 FICHE = {'nom': 'Nebius', 'quoi': 'la clef', 'a_quoi_ca_sert': 'donner a Arthur le droit de parler au gros cerveau', 'debuts': [], 'longueur_mini': 20, 'exemple': 'elle commence souvent par eyJ', 'essai': {'adresse': 'https://api.studio.nebius.com/v1/models', 'entete': 'Authorization: Bearer {s}', 'qui': None}, 'ou_le_fabriquer': ['Va sur studio.nebius.com et connecte-toi.', 'Clique sur ton nom, en haut a droite.', 'Choisis API keys, puis le bouton qui cree une clef.', 'Copie la ligne entiere. Nebius ne la remontrera plus jamais.'], 'couleurs': ('#001A2B', '#052B42', '#2c3543', '#F9F9FF', '#E0FF4F')}
-COFFRE = os.path.expanduser("~/.secrets/secret-nebius.txt")
+# (29/09) le meme coffre que celui que lit nemotron_nebius.py
+COFFRE = os.path.expanduser("~/.secrets/cle-nebius.txt")
 
 
 def etat():
@@ -94,32 +95,32 @@ ETAPES = "".join("<li>%s</li>" % e for e in FICHE["ou_le_fabriquer"])
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>La clef de Nebius</title><style>
-*{{box-sizing:border-box}} body{{margin:0;background:%s;color:%s;
+*{box-sizing:border-box} body{margin:0;background:%s;color:%s;
  font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
- display:flex;justify-content:center;padding:48px 20px}}
-.boite{{width:100%%;max-width:620px}}
-h1{{font-size:28px;margin:0 0 6px}} .sous{{opacity:.65;margin:0 0 28px}}
-.carte{{background:%s;border:1px solid %s;border-radius:14px;padding:22px;
- margin-bottom:18px}}
-.etat{{display:flex;align-items:center;gap:10px;font-size:17px}}
-.pastille{{width:11px;height:11px;border-radius:50%%;flex:0 0 auto}}
-.vert{{background:#3fb950}} .rouge{{background:#f85149}} .gris{{background:#6e7681}}
-label{{display:block;font-size:14px;opacity:.65;margin:0 0 8px}}
-input{{width:100%%;padding:13px 15px;border-radius:10px;border:1px solid %s;
- background:%s;color:%s;font:15px ui-monospace,monospace}}
-input:focus{{outline:none;border-color:%s}}
-.rangee{{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}}
-button{{padding:12px 20px;border-radius:10px;border:0;font-size:15px;
- font-weight:600;cursor:pointer;background:%s;color:%s}}
-button.gris{{background:%s;color:%s;border:1px solid %s}}
-button:disabled{{opacity:.5;cursor:wait}}
-.mot{{margin-top:16px;padding:13px 15px;border-radius:10px;font-size:15px;
- display:none;white-space:pre-wrap}}
-.mot.bien{{display:block;background:#0f2a16;border:1px solid #2ea043;color:#7ee787}}
-.mot.mal{{display:block;background:#2d1113;border:1px solid #f85149;color:#ffa198}}
-.aide{{opacity:.5;font-size:14px;margin:8px 0 0}}
-ol{{opacity:.75;font-size:15px;padding-left:22px;margin:10px 0 0}}
-ol li{{margin-bottom:7px}}
+ display:flex;justify-content:center;padding:48px 20px}
+.boite{width:100%%;max-width:620px}
+h1{font-size:28px;margin:0 0 6px} .sous{opacity:.65;margin:0 0 28px}
+.carte{background:%s;border:1px solid %s;border-radius:14px;padding:22px;
+ margin-bottom:18px}
+.etat{display:flex;align-items:center;gap:10px;font-size:17px}
+.pastille{width:11px;height:11px;border-radius:50%%;flex:0 0 auto}
+.vert{background:#3fb950} .rouge{background:#f85149} .gris{background:#6e7681}
+label{display:block;font-size:14px;opacity:.65;margin:0 0 8px}
+input{width:100%%;padding:13px 15px;border-radius:10px;border:1px solid %s;
+ background:%s;color:%s;font:15px ui-monospace,monospace}
+input:focus{outline:none;border-color:%s}
+.rangee{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+button{padding:12px 20px;border-radius:10px;border:0;font-size:15px;
+ font-weight:600;cursor:pointer;background:%s;color:%s}
+button.gris{background:%s;color:%s;border:1px solid %s}
+button:disabled{opacity:.5;cursor:wait}
+.mot{margin-top:16px;padding:13px 15px;border-radius:10px;font-size:15px;
+ display:none;white-space:pre-wrap}
+.mot.bien{display:block;background:#0f2a16;border:1px solid #2ea043;color:#7ee787}
+.mot.mal{display:block;background:#2d1113;border:1px solid #f85149;color:#ffa198}
+.aide{opacity:.5;font-size:14px;margin:8px 0 0}
+ol{opacity:.75;font-size:15px;padding-left:22px;margin:10px 0 0}
+ol li{margin-bottom:7px}
 </style></head><body><div class="boite">
 <h1>La clef de Nebius</h1>
 <p class="sous">C'est %s pour %s.</p>
@@ -142,23 +143,23 @@ ol li{{margin-bottom:7px}}
 <div class="carte"><label>Si tu dois en fabriquer un</label><ol>%s</ol></div>
 </div><script>
 const $=(i)=>document.getElementById(i);
-function dire(t,b){{const m=$('mot');m.textContent=t;m.className='mot '+(b?'bien':'mal');}}
-async function rafraichir(){{
+function dire(t,b){const m=$('mot');m.textContent=t;m.className='mot '+(b?'bien':'mal');}
+async function rafraichir(){
   const r=await (await fetch('/etat')).json();
   $('pastille').className='pastille '+(r.posee?'vert':'rouge');
   $('etat').textContent=r.posee
     ?'C\\'est range (ca finit par '+r.apercu+', '+r.longueur+' caracteres).'
-    :"Rien n'est range. Je ne peux pas continuer sans.";}}
-$('voir').onclick=()=>{{const c=$('v');c.type=c.type==='password'?'text':'password';
-  $('voir').textContent=c.type==='password'?'Montrer ce que je tape':'Cacher';}};
-$('ranger').onclick=async()=>{{const r=await (await fetch('/ranger',{{method:'POST',
-  headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{valeur:$('v').value}})}})).json();
-  dire(r.texte,r.ok); if(r.ok)$('v').value=''; rafraichir();}};
-$('essayer').onclick=async(e)=>{{e.target.disabled=true;dire("Je demande, patiente…",true);
-  const r=await (await fetch('/essayer',{{method:'POST'}})).json();
-  dire(r.texte,r.ok);e.target.disabled=false;}};
-$('effacer').onclick=async()=>{{const r=await (await fetch('/effacer',{{method:'POST'}})).json();
-  dire(r.texte,r.ok);rafraichir();}};
+    :"Rien n'est range. Je ne peux pas continuer sans.";}
+$('voir').onclick=()=>{const c=$('v');c.type=c.type==='password'?'text':'password';
+  $('voir').textContent=c.type==='password'?'Montrer ce que je tape':'Cacher';};
+$('ranger').onclick=async()=>{const r=await (await fetch('/ranger',{method:'POST',
+  headers:{'Content-Type':'application/json'},body:JSON.stringify({valeur:$('v').value})})).json();
+  dire(r.texte,r.ok); if(r.ok)$('v').value=''; rafraichir();};
+$('essayer').onclick=async(e)=>{e.target.disabled=true;dire("Je demande, patiente…",true);
+  const r=await (await fetch('/essayer',{method:'POST'})).json();
+  dire(r.texte,r.ok);e.target.disabled=false;};
+$('effacer').onclick=async()=>{const r=await (await fetch('/effacer',{method:'POST'})).json();
+  dire(r.texte,r.ok);rafraichir();};
 rafraichir();
 </script></body></html>""" % (FOND, TEXTE, CARTE, BORD, BORD, FOND, TEXTE, ACCENT,
   ACCENT, FOND, CARTE, TEXTE, BORD, FICHE["quoi"], FICHE["a_quoi_ca_sert"],
@@ -175,7 +176,31 @@ class Poste(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def _serrure(self, ecrire):
+        """(29/09) Seule CETTE machine, par CETTE page, a le droit d'entrer.
+
+        Ecouter sur 127.0.0.1 ne suffit pas : n'importe quel site ouvert dans
+        le navigateur peut envoyer un POST ici (sans meme lire la reponse),
+        et un domaine « rebinde » vers 127.0.0.1 passe pour local.
+          - Host doit etre 127.0.0.1:PORT ou localhost:PORT (anti-rebinding) ;
+          - pour ecrire, Origin (ou Referer) doit etre cette meme page."""
+        port = self.server.server_address[1]   # le port vraiment ecoute
+        hotes = {"127.0.0.1:%d" % port, "localhost:%d" % port}
+        hote = (self.headers.get("Host") or "").lower()
+        if hote not in hotes:
+            return False
+        if not ecrire:
+            return True
+        origine = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if "://" not in origine:
+            return False
+        schema, reste = origine.split("://", 1)
+        return schema == "http" and reste.split("/", 1)[0].lower() == hote
+
     def do_GET(self):
+        if not self._serrure(False):
+            self.send_error(403, "Hote inconnu : requete rejetee.")
+            return
         if self.path in ("/", "/index.html"):
             return self._envoyer(PAGE, "text/html")
         if self.path == "/etat":
@@ -185,6 +210,9 @@ class Poste(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self):
+        if not self._serrure(True):
+            self.send_error(403, "Origine inconnue : requete rejetee.")
+            return
         n = int(self.headers.get("Content-Length") or 0)
         try:
             d = json.loads(self.rfile.read(n) if n else b"{}")

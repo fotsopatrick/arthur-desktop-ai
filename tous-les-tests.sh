@@ -38,6 +38,41 @@ for f in test_*.py; do
     bilan=$(echo "$sortie" | grep -oiE "[0-9]+ rouge|[0-9]+ ratees?" | tail -1)
     nombre=$(echo "$bilan" | grep -oE "^[0-9]+")
 
+    # (29/09) Les series ecrites avec unittest disent « Ran N tests » puis
+    # « OK » ou « FAILED (failures=2) ». Ce lanceur ne les lisait pas et les
+    # comptait ROUGES alors qu'elles passaient.
+    if [ -z "$nombre" ] && echo "$sortie" | grep -qE "^Ran [0-9]+ tests? in"; then
+        if echo "$sortie" | grep -qE "^OK( \(|$)"; then
+            nombre=0
+        else
+            bilan=$(echo "$sortie" | grep -E "^FAILED" | tail -1)
+            nombre=1
+        fi
+    fi
+
+    # (29/09) Une serie ROUGE parce qu'il manque une chose EXTERIEURE a ce
+    # depot (le cockpit de Patrick, la tour, GTK, ~/outils, le registre prive)
+    # n'est pas une regression : on le DIT, on la compte a part. Seule une
+    # serie deja rouge est reclassee — une serie verte reste verte.
+    if [ -z "$nombre" ] || [ "$nombre" -ne 0 ]; then
+        besoin=""
+        if echo "$sortie" | grep -qi "errno 111\] connection refused"; then
+            besoin="le cockpit local (127.0.0.1:8790)"
+        elif echo "$sortie" | grep -q "pas pu lancer la connexion"; then
+            besoin="un acces ssh a la tour"
+        elif echo "$sortie" | grep -qE "No module named 'gi'|cannot import name '_gi'"; then
+            besoin="GTK (python3-gi)"
+        elif echo "$sortie" | grep -q "outils/pilote-page.py"; then
+            besoin="~/outils/pilote-page.py"
+        elif echo "$sortie" | grep -q "registre_connaissances.json'"; then
+            besoin="le registre de travail prive"
+        fi
+        if [ -n "$besoin" ]; then
+            printf "  ~ %-44s a besoin de %s\n" "$f" "$besoin"
+            sautes=$((sautes + 1)); continue
+        fi
+    fi
+
     if [ -z "$nombre" ]; then
         printf "  ? %-44s pas de bilan lisible\n" "$f"
         rouges=$((rouges + 1)); liste_rouges="$liste_rouges $f"

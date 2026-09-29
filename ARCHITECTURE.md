@@ -19,8 +19,8 @@ knows, answers. When none of them knows, **he says so**.
         └───────────────────┬──────────────────────────┘
                             ▼ nothing
         ┌──────────────────────────────────────────────┐
-  L3    │  DOCUMENTS — what was ingested               │  ~300 ms
-        │  100 documents, 1197 chunks                  │  local network
+  L3    │  DOCUMENTS — documents/ on this machine      │  ~1 ms
+        │  (rag_local.py, BM25), then remote stores    │  offline first
         └───────────────────┬──────────────────────────┘
                             ▼ nothing
         ┌──────────────────────────────────────────────┐
@@ -33,6 +33,15 @@ knows, answers. When none of them knows, **he says so**.
         │  Never a guess. Never a fabrication.         │
         └──────────────────────────────────────────────┘
 ```
+
+The same path exists as an explicit graph in `arthur_graphe.py` (nodes
+`local` → `documents_distants` → `gros_cerveau` → `aveu`), run by LangGraph
+when it is installed and by a built-in runner otherwise. The `local` node is
+the engine with `choisir="aucun"`: it never touches the network, and it only
+lets a question climb when its answer carries `peut_monter=True`.
+
+When the documents answer but no large model is reachable, Arthur **quotes
+the passage and names the file** rather than paraphrasing from memory.
 
 ## Why layers, and why in this order
 

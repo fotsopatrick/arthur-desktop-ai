@@ -76,11 +76,44 @@ Don't take our word for it. Every claim below is a test you can run:
 |---|---|---|
 | 1 — tools | reads live state: clock, services, network, **System C governance & agents** | 1–10 ms |
 | 2 — rules | 229 written topics about your own domain | **0.14 ms** |
-| 3 — documents | searches what has been ingested | ~300 ms |
+| 3 — documents | searches `documents/` on this machine (`rag_local.py`, BM25, no network), then remote stores if configured — **quotes the file** when no large model is available | ~1 ms local |
 | 4 — large model | **NVIDIA Nemotron**, hosted on **Nebius** | ~2 s |
 | — admission | when none of the four knows, **he says so** | 1 ms |
 
-No embeddings. No weights. No GPU. No API key required for layers 1 and 2.
+No embeddings. No weights. No GPU. No API key required for layers 1, 2 and 3.
+
+### Local documents (RAG)
+
+Drop `.md` or `.txt` files into `documents/` (or list other folders under
+`"rag_dossiers"` in `reglages-maison.json`, or in `ARTHUR_DOCUMENTS`). Arthur
+searches them with no network and no dependency. He answers only when the
+passages really contain the important words of the question, and he names
+the file he read. Otherwise: "I don't know".
+
+```bash
+python3 rag_local.py --etat                          # which folders, how many passages
+python3 rag_local.py --json-chercher "my question"   # what he would read
+```
+
+### The decision graph (LangGraph)
+
+`arthur_graphe.py` draws the same decision path as an explicit graph:
+
+```
+local ──(knows, or refuses)─────────────────────────────────► end
+  └─(doesn't know, may ask)─► remote_documents ─► large_model ─► end
+                                                      └─(nothing)─► admission
+```
+
+Health, secrets, gibberish and domain questions without a written rule are
+settled at `local` and **never** reach the large model. With `pip install
+langgraph` the graph runs on LangGraph (and `--dessin` prints it as Mermaid);
+without it, a built-in runner walks the exact same nodes.
+
+```bash
+python3 arthur_graphe.py "what is the capital of Cameroon?"
+python3 arthur_graphe.py --dessin
+```
 
 ### Choose the large model (layer 4) in one command
 

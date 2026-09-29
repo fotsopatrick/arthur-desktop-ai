@@ -32,12 +32,16 @@ def normaliser_mots(texte):
 def fusionner():
     print("🔄 Fusion des connaissances d'Alice et de la Tour dans le Nano-Reasoner...")
     
+    # (29/09) « la fusion ne detruit rien » : un registre illisible arrete
+    # tout (avant, il etait remplace par {}), et sur un clone neuf on part
+    # du savoir publie au lieu d'un registre vide qui cacherait l'exemple.
     registre = {}
     if os.path.exists(REGISTRE_PATH):
-        try:
-            registre = json.load(open(REGISTRE_PATH, encoding="utf-8"))
-        except Exception:
-            registre = {}
+        registre = json.load(open(REGISTRE_PATH, encoding="utf-8"))
+    else:
+        exemple = os.path.join(ICI, "registre_exemple.json")
+        if os.path.exists(exemple):
+            registre = json.load(open(exemple, encoding="utf-8"))
 
     nouveaux_items = 0
 
@@ -92,9 +96,14 @@ def fusionner():
                 }
                 nouveaux_items += 1
 
-    # Sauvegarde du registre mis à jour
-    with open(REGISTRE_PATH, "w", encoding="utf-8") as f:
-        json.dump(registre, f, ensure_ascii=False, indent=2)
+    if nouveaux_items == 0:
+        print("Rien a fusionner (aucune donnee dans %s) : le registre n'est pas touche." % DONNEES_DIR)
+        return
+
+    # Sauvegarde du registre mis à jour — atomique : fichier temporaire, puis
+    # remplacement, pour qu'un crash ne laisse pas un registre a moitie ecrit.
+    from ecriture_sure import ecrire_json
+    ecrire_json(REGISTRE_PATH, registre, indent=2)
 
     print(f"🎉 FUSION RÉUSSIE ! {len(registre)} règles et circuits d'Alice sont désormais disponibles dans le Nano-Reasoner à < 0.1ms !")
 

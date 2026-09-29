@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
 # Signature: nominomi
 # B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
 # HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
 
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 HAICHI — le compagnon pose sur le bureau.
@@ -620,7 +620,8 @@ class Haichi(Gtk.Window):
     # ------------------------------------------------------------------
     # COMMENT ARTHUR CHERCHE — refait le 17/09/2026, apres trois fautes.
     #
-    # 1. IL COUPAIT LA ROUTE. Son premier serveur (porte 8796) repond
+    # 1. IL COUPAIT LA ROUTE. Son premier serveur (ex-porte 8796, aujourd hui
+    #    /api/arthur-action du cockpit 8790, derriere son jeton) repond
     #    {"erreur": "inconnu"} : il REPOND, il ne plante pas. L ancien code
     #    ne se rabattait sur le cockpit que si ca PLANTAIT. Un « je ne sais
     #    pas » poli n est pas une panne — donc le cockpit, qui avait la
@@ -665,7 +666,7 @@ class Haichi(Gtk.Window):
         depart = time.time()
         try:
             corps = json.dumps({"prompt": question, "action": "parler"}).encode("utf-8")
-            r = urllib.request.Request("http://127.0.0.1:8796/api/arthur-action",
+            r = urllib.request.Request(COCKPIT + "/api/arthur-action",
                                        data=corps,
                                        headers=jeton_cockpit.entetes())
             d = json.loads(urllib.request.urlopen(r, timeout=10).read().decode("utf-8"))
@@ -803,9 +804,18 @@ if __name__ == "__main__":
     # Ca sert a prouver qu il repond VRAIMENT dans sa fenetre, pas seulement
     # qu un serveur rend 200.
     question_de_depart = " ".join(sys.argv[1:]).strip()
-    # sur l ecran de DROITE (celui qui commence a 1920), en bas
-    X = 1920 + 1920 - LARGEUR - 40
-    Y = 1080 - HAUTEUR - 90
+    # En bas a droite de l'ecran LE PLUS A DROITE, quel qu'il soit (29/09).
+    # Avant : X = 1920 + 1920 - ..., ecrit pour les deux ecrans de Patrick ;
+    # sur un seul ecran de 1920, la fenetre s'ouvrait hors de la vue.
+    try:
+        affichage = Gdk.Display.get_default()
+        zones = [affichage.get_monitor(i).get_workarea()
+                 for i in range(affichage.get_n_monitors())]
+        z = max(zones, key=lambda g: g.x + g.width)
+        X = z.x + z.width - LARGEUR - 40
+        Y = z.y + z.height - HAUTEUR - 90
+    except Exception:
+        X, Y = 1920 - LARGEUR - 40, 1080 - HAUTEUR - 90
     h = Haichi()
     h.move(X, Y)
     h.show_all()
