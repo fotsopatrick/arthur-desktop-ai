@@ -17,7 +17,7 @@ _s = _u.spec_from_file_location("pilote", os.path.expanduser("~/outils/pilote-pa
 _p = _u.module_from_spec(_s); _s.loader.exec_module(_p)
 Page = _p.Page
 
-sys.path.insert(0, os.path.expanduser("~/haichi"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import nemotron_nebius
 
 def _chrome_est_pilotable():

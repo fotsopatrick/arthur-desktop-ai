@@ -155,6 +155,30 @@ class TestMCPRefactor:
         assert "ancien_nom" in content
         assert "REMPLACEMENT" not in content
 
+    def test_cible_vide_refusee(self):
+        """Une cible vide detruisait le fichier (inseree entre chaque caractere)."""
+        from skills.mcp_refactor import refactor
+        chemin = os.path.join(self.tmpdir, "fichier1.py")
+        avant = open(chemin).read()
+        result = refactor("*.py", "", "X", base_dir=self.tmpdir)
+        assert result["success"] is False
+        assert result["reason"] == "empty_target"
+        assert open(chemin).read() == avant
+
+    def test_glob_hors_base_ignore(self):
+        """Un glob absolu ou en ../ ne sort pas de base_dir."""
+        from skills.mcp_refactor import refactor
+        dehors = tempfile.mkdtemp(prefix="mcp_refactor_dehors_")
+        try:
+            cible = os.path.join(dehors, "x.py")
+            with open(cible, "w") as f:
+                f.write("ancien_nom\n")
+            result = refactor(cible, "ancien_nom", "pirate", base_dir=self.tmpdir)
+            assert result["files_scanned"] == 0
+            assert open(cible).read() == "ancien_nom\n"
+        finally:
+            shutil.rmtree(dehors, ignore_errors=True)
+
     def test_regex(self):
         """Remplacement par regex fonctionne."""
         from skills.mcp_refactor import refactor

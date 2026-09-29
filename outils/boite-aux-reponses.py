@@ -129,7 +129,31 @@ class Guichet(BaseHTTPRequestHandler):
                     return
                 reste -= len(bout)
 
+    def _serrure(self, ecrire):
+        """(29/09) Seule CETTE machine, par CETTE page, a le droit d'entrer.
+
+        Ecouter sur 127.0.0.1 ne suffit pas : n'importe quel site ouvert dans
+        le navigateur peut envoyer un POST ici (sans meme lire la reponse),
+        et un domaine « rebinde » vers 127.0.0.1 passe pour local.
+          - Host doit etre 127.0.0.1:PORT ou localhost:PORT (anti-rebinding) ;
+          - pour ecrire, Origin (ou Referer) doit etre cette meme page."""
+        port = self.server.server_address[1]   # le port vraiment ecoute
+        hotes = {"127.0.0.1:%d" % port, "localhost:%d" % port}
+        hote = (self.headers.get("Host") or "").lower()
+        if hote not in hotes:
+            return False
+        if not ecrire:
+            return True
+        origine = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if "://" not in origine:
+            return False
+        schema, reste = origine.split("://", 1)
+        return schema == "http" and reste.split("/", 1)[0].lower() == hote
+
     def do_GET(self):
+        if not self._serrure(False):
+            self.send_error(403, "Hote inconnu : requete rejetee.")
+            return
         import urllib.parse
         route = urllib.parse.unquote(self.path.split("?")[0])
         if route.startswith("/videos/"):
@@ -161,6 +185,9 @@ class Guichet(BaseHTTPRequestHandler):
                           "text/html; charset=utf-8")
 
     def do_POST(self):
+        if not self._serrure(True):
+            self.send_error(403, "Origine inconnue : requete rejetee.")
+            return
         if not self.path.startswith("/repondre"):
             self._envoyer(404, '{"dit":"je ne connais pas cette porte"}')
             return

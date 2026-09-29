@@ -56,8 +56,21 @@ def confiance_sur(source, date_capture):
     s = (source or "").lower()
     base = 0.5
     trouve = False
+    # (29/09) Un marqueur cherche comme simple sous-chaine se trichait :
+    # « http://evil.example/gouv » obtenait 1.0. Pour une URL, seul le NOM
+    # DE DOMAINE compte (data.gouv.fr -> gouv) ; pour un texte libre, le
+    # marqueur doit etre un mot entier (« ministere de ... »).
+    hote = ""
+    if "://" in s:
+        from urllib.parse import urlparse
+        hote = (urlparse(s).hostname or "")
+    etiquettes = set(hote.split(".")) if hote else set()
     for marqueur, grade in _GRADES_SOURCE:
-        if marqueur in s:
+        if hote:
+            bon = marqueur in etiquettes
+        else:
+            bon = re.search(r"(?<!\w)" + re.escape(marqueur) + r"(?!\w)", s) is not None
+        if bon:
             base, trouve = grade, True
             break
     if not trouve:

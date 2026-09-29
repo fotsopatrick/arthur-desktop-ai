@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-ICI = os.path.expanduser("~/haichi")
+ICI = os.path.dirname(os.path.abspath(__file__))
 
 # Ce qui ne doit jamais sortir. On ecrit les vraies valeurs ICI, dans un
 # fichier qui reste a la maison — c'est le seul endroit ou elles ont le droit

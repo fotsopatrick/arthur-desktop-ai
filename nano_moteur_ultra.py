@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
 # Signature: nominomi
 # B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
 # HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
 
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 nano_moteur_ultra.py — le cerveau d'Haichi.
@@ -283,6 +283,10 @@ DOCUMENTS_PATIENCE = 20
 # 7 secondes pour rien (mesure du 15/09/2026). Il retient donc son echec
 # pendant une demi-minute, et avoue tout de suite pendant ce temps.
 ALICE_MUETTE_JUSQUA = [0.0]      # une case, partagee par tout le moteur
+# (29/09) Les documents (port 8000) et le modele (port 8081) sont deux
+# services distincts : une panne des documents ne doit pas faire taire Qwen
+# pendant 30 s. Chacun a donc sa propre case.
+DOCUMENTS_MUETS_JUSQUA = [0.0]
 ALICE_REPOS = 30                 # secondes avant de retenter
 ALICE_PATIENCE = 90          # secondes accordees a Alice
 MOTS_INCONNUS_MAX = 1        # 2 mots longs inconnus ou plus -> Haichi se tait
@@ -421,18 +425,21 @@ class NanoMoteurUltraEngine:
         ALICE_MUETTE_JUSQUA[0] = time.time() + ALICE_REPOS
 
     def chercher_dans_les_documents(self, question):
-        if self.alice_est_injoignable():
-            return None, 0
         """Rend (extraits, combien) ou (None, 0) si rien d assez pertinent."""
+        if time.time() < DOCUMENTS_MUETS_JUSQUA[0]:
+            return None, 0
         import urllib.request, urllib.parse
         try:
             url = DOCUMENTS_URL + urllib.parse.quote(question[:300])
             d = json.loads(urllib.request.urlopen(url, timeout=DOCUMENTS_PATIENCE)
                            .read().decode("utf-8"))
         except Exception:
-            self.noter_alice_muette()
+            DOCUMENTS_MUETS_JUSQUA[0] = time.time() + ALICE_REPOS
             return None, 0
-        morceaux = d.get("resultats", [])
+        # (29/09) une reponse JSON qui n'est pas un objet ne fait plus planter
+        if not isinstance(d, dict):
+            return None, 0
+        morceaux = [r for r in (d.get("resultats") or []) if isinstance(r, dict)]
         if not morceaux:
             return None, 0
         extraits = "\n\n".join((r.get("contenu") or "")[:700] for r in morceaux[:3])
@@ -487,9 +494,9 @@ class NanoMoteurUltraEngine:
         return extraits, len(retrouves)
 
     def demander_a_alice(self, question, extraits=None):
+        """On passe la main a Qwen sur Alice. Rend (reponse, panne)."""
         if self.alice_est_injoignable():
             return None, "Alice est injoignable (constate il y a moins de 30 secondes)."
-        """On passe la main a Qwen sur Alice. Rend (reponse, panne)."""
         import urllib.request
         consigne = CONSIGNE_ALICE
         if extraits:
@@ -623,6 +630,16 @@ class NanoMoteurUltraEngine:
         # ETAGE 0 : un OUTIL sait-il repondre ? Un outil va voir maintenant.
         # Il passe avant les regles, parce qu une regle ne connait pas l heure.
         if haichi_outils is not None:
+            # (29/09) Le calcul lit d'abord la question BRUTE : la version
+            # normalisee a perdu « - », « , » et « * » (« -5 plus 3 » y
+            # devenait « 5 plus 3 » = 8).
+            try:
+                calcul = haichi_outils.outil_calcul(prompt)
+            except Exception:
+                calcul = None
+            if calcul:
+                return self._sortie(True, "Je suis alle voir sur la machine.",
+                                    calcul, "outil", 100, t0, source="outil")
             outil = haichi_outils.chercher_un_outil(prompt_norm)
             if outil is not None:
                 try:
@@ -811,7 +828,7 @@ class NanoMoteurUltraEngine:
             # et redescend à la maison (Qwen) — il n'invente jamais.
             if choix == "nebius":
                 if nemotron_nebius is not None and nemotron_nebius.est_pret():
-                    d = nemotron_nebius.demander(prompt_norm)
+                    d = nemotron_nebius.demander(prompt)
                     if d.get("reponse"):
                         return self._sortie(
                             True, raison + " — passé à Nemotron, chez Nebius (Token Factory).",
@@ -821,13 +838,13 @@ class NanoMoteurUltraEngine:
                 choix = "qwen"
 
             if choix == "local":
-                reponse = self.demander_a_morgan(prompt_norm)
+                reponse = self.demander_a_morgan(prompt)
                 if reponse:
                     return self._sortie(
                         True, raison + " — passe a Nemotron local (morgan, ollama).",
                         reponse, "local", 0.0, t0, source="local")
 
-            reponse, panne = self.demander_a_alice(prompt_norm)
+            reponse, panne = self.demander_a_alice(prompt)
             if reponse:
                 # Alice a repondu « Je ne sais pas » ? C'est une LACUNE
                 # deguisee : on la consigne pour l'apprentissage bottom-up,

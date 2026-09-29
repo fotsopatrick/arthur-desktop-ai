@@ -155,11 +155,12 @@ class TestOutilsLocaux:
                 s.fermer()
 
     def test_refactor_repond_avec_modifications(self):
-        with tempfile.TemporaryDirectory() as td:
-            fiche = os.path.join(td, "source.txt")
-            with open(fiche, "w") as f:
-                f.write("Bonjour le monde.\n")
+        # Le refactor ne touche que ce qui vit SOUS le depot (29/09) : le
+        # fichier d'essai est donc pose dans un dossier jetable du depot.
+        with tempfile.TemporaryDirectory(dir=REPO) as td:
             cible = os.path.join(td, "source.txt")
+            with open(cible, "w") as f:
+                f.write("Bonjour le monde.\n")
             s = Serveur()
             try:
                 texte = s.appeler_outil("refactor", {
@@ -171,6 +172,27 @@ class TestOutilsLocaux:
                 data = json.loads(texte)
                 assert data.get("total_replacements", 0) == 1
                 assert data.get("files_modified", 0) == 1
+                # dry_run : le fichier n'a pas bouge
+                assert open(cible).read() == "Bonjour le monde.\n"
+            finally:
+                s.fermer()
+
+    def test_refactor_refuse_hors_du_depot(self):
+        with tempfile.TemporaryDirectory() as td:
+            cible = os.path.join(td, "source.txt")
+            with open(cible, "w") as f:
+                f.write("Bonjour le monde.\n")
+            s = Serveur()
+            try:
+                texte = s.appeler_outil("refactor", {
+                    "glob": cible,
+                    "target": "monde",
+                    "replace": "univers",
+                    "dry_run": False,
+                })
+                data = json.loads(texte)
+                assert data.get("files_scanned") == 0
+                assert open(cible).read() == "Bonjour le monde.\n"
             finally:
                 s.fermer()
 

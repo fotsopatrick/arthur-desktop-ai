@@ -8,7 +8,7 @@ epreuves ici verifient qu'il se TAIT quand ce n'est pas un calcul.
 import os
 import sys
 
-sys.path.insert(0, os.path.expanduser("~/haichi"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import haichi_outils as H
 import nano_moteur_ultra as NM
 

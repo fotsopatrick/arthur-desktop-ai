@@ -63,7 +63,9 @@ def refactor_file(filepath, target, replacement, use_regex=False,
         return 0, [], f"impossible de créer le fichier temporaire : {e}"
 
     try:
-        with open(filepath, "r", encoding="utf-8", errors="replace") as src, \
+        # (29/09) errors="strict" : un fichier qui n'est pas en UTF-8 est
+        # refuse, jamais reecrit avec des caracteres de remplacement.
+        with open(filepath, "r", encoding="utf-8") as src, \
              os.fdopen(tmp_fd, "w", encoding="utf-8") as dst:
             for line_no, line in enumerate(src, 1):
                 if pattern:
@@ -106,6 +108,13 @@ def refactor(glob_pattern, target, replacement, use_regex=False,
 
     Rend le dict de résultat structuré.
     """
+    # (29/09) Une cible vide « se trouve » entre chaque caractere : le
+    # remplacement etait insere partout et le fichier detruit. On refuse.
+    if not target:
+        return {"files_scanned": 0, "files_modified": 0,
+                "total_replacements": 0, "changes": [], "dry_run": dry_run,
+                "success": False, "reason": "empty_target"}
+
     # Résolution du glob
     if os.path.isabs(glob_pattern):
         files = sorted(glob.glob(glob_pattern, recursive=True))
@@ -113,10 +122,18 @@ def refactor(glob_pattern, target, replacement, use_regex=False,
         files = sorted(glob.glob(os.path.join(base_dir, "**", glob_pattern),
                                  recursive=True))
 
+    # (29/09) On ne touche QUE ce qui vit sous base_dir : un chemin absolu
+    # ou un « ../ » dans le glob ne doit pas sortir du depot.
+    racine = os.path.realpath(base_dir)
+
+    def _sous_la_racine(chemin):
+        vrai = os.path.realpath(chemin)
+        return vrai == racine or vrai.startswith(racine + os.sep)
+
     # Ne touche que les fichiers texte (skip binaires)
     text_files = []
     for f in files:
-        if os.path.isfile(f) and not _is_binary(f):
+        if os.path.isfile(f) and _sous_la_racine(f) and not _is_binary(f):
             text_files.append(f)
 
     changes = []

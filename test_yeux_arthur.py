@@ -9,7 +9,7 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.expanduser("~/haichi"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import haichi_outils as H
 import haichi_outils_tour as T
 import nano_moteur_ultra as NM
