@@ -87,7 +87,8 @@ def noeud_documents_distants(etat: Etat) -> Etat:
 
 def noeud_gros_cerveau(etat: Etat) -> Etat:
     """Le meme ordre que le moteur : nebius (si la clef est la) puis qwen ;
-    local (morgan) puis qwen. Rend une sortie au format du moteur."""
+    local (morgan) puis qwen ; un cerveau declare (deepseek, claude... —
+    fournisseurs.py) puis qwen. Rend une sortie au format du moteur."""
     q, extraits = etat["question"], etat.get("extraits")
     choix = etat.get("choix") or NM._reglage_maison("cerveau_gros", "qwen")
     t0 = NM.time.perf_counter_ns()
@@ -115,6 +116,17 @@ def noeud_gros_cerveau(etat: Etat) -> Etat:
                         "local", 0.0, t0, source="local"),
                     "etapes": _pas(etat, "gros_cerveau : morgan")}
         essais.append("morgan : rien")
+
+    externe = _MOTEUR._cerveau_externe(choix)
+    if externe:
+        d = NM.fournisseurs.demander(externe, q, extraits, consigne=NM.CONSIGNE_ALICE)
+        if d.get("reponse") and "je ne sais pas" not in d["reponse"].lower():
+            return {"sortie": NM.NanoMoteurUltraEngine._sortie(
+                        True, "Passe a %s (%s)%s." % (externe, d.get("modele") or "?",
+                                                      ", avec les documents" if extraits else ""),
+                        d["reponse"], externe, 0.0, t0, source=externe),
+                    "etapes": _pas(etat, "gros_cerveau : %s" % externe)}
+        essais.append("%s : %s" % (externe, d.get("panne") or "« je ne sais pas »"))
 
     r, panne = _MOTEUR.demander_a_alice(q, extraits)
     if r and "je ne sais pas" not in r.lower():

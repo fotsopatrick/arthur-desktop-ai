@@ -124,6 +124,26 @@ python3 arthur_cerveau.py qwen       # a Qwen server on your own network
 python3 arthur_cerveau.py local      # Nemotron through ollama, on this machine
 ```
 
+**Any other large model, interchangeably.** DeepSeek, Claude, Mistral,
+OpenRouter, Groq, OpenAI, a local ollama model — declare it once under
+`"cerveaux"` in `reglages-maison.json` (copy from `cerveaux.exemple.json`),
+then pick it by name:
+
+```bash
+python3 arthur_cerveau.py deepseek   # or claude, mistral, ollama...
+python3 fournisseurs.py              # every brain, paid or free
+```
+
+`fournisseurs.py` speaks the OpenAI-compatible `/chat/completions` format,
+Claude through the official `anthropic` SDK, and ollama. API keys never go in
+the file — only the *name* of the environment variable holding them. If the
+chosen brain is silent, Arthur falls back to `"cerveau_repli"` (default: Qwen).
+
+**Spending is off by default.** Every paid brain goes through
+`budget_nebius.py`: nothing leaves until `~/.config/budget-nebius.json` holds
+`"paiement_autorise": 1`, a price (`euros_par_million`) and a cap
+(`euros_max`), on top of daily and lifetime token caps.
+
 It takes effect on the next question, no restart. Any coding agent (Claude Code,
 opencode, Antigravity) can run it; agents that speak MCP also get the
 `arthur_cerveau` tool from `mcp_arthur_server.py`. If Nebius runs out of credit,

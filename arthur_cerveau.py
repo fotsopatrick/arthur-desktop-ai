@@ -13,11 +13,30 @@ Le réglage vit dans reglages-maison.json (ARTHUR_REGLAGES pour un autre fichier
 """
 import json, os, sys, tempfile
 
-CHOIX = {
+CHOIX_DE_BASE = {
     "qwen":   "Qwen, sur Alice — gratuit, à la maison",
     "nebius": "NVIDIA Nemotron, chez Nebius Token Factory — payant (celui du concours)",
     "local":  "Nemotron local, sur ce PC (ollama) — gratuit, plus lent",
 }
+
+
+def choix_possibles():
+    """(29/09) Les trois de base, plus chaque cerveau declare dans
+    reglages-maison.json -> "cerveaux" (deepseek, claude... : fournisseurs.py)."""
+    choix = dict(CHOIX_DE_BASE)
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+        import fournisseurs
+        for nom, f in fournisseurs.cerveaux().items():
+            if nom not in choix:
+                choix[nom] = "%s (%s) — %s" % (f.get("modele") or "?", f.get("type"),
+                                               "payant" if fournisseurs.est_payant(f) else "gratuit")
+    except Exception:
+        pass
+    return choix
+
+
+CHOIX = CHOIX_DE_BASE   # (compatibilite) — la liste vivante : choix_possibles()
 DEFAUT = "qwen"
 
 
@@ -41,8 +60,9 @@ def actuel():
 def choisir(nom):
     """Change le cerveau. Rend (ok, message). N'écrit rien si le nom est inconnu."""
     nom = (nom or "").strip().lower()
-    if nom not in CHOIX:
-        return False, "Cerveau inconnu : « %s ». Choix possibles : %s." % (nom, ", ".join(CHOIX))
+    tous = choix_possibles()
+    if nom not in tous:
+        return False, "Cerveau inconnu : « %s ». Choix possibles : %s." % (nom, ", ".join(tous))
     # (29/09) Un reglage illisible n'est pas un reglage vide : avant, lire()
     # rendait {} et on reecrivait un fichier ne contenant QUE cerveau_gros —
     # les adresses des machines etaient effacees. On refuse, et on le dit.
@@ -56,14 +76,16 @@ def choisir(nom):
     avant = d.get("cerveau_gros") or DEFAUT
     d["cerveau_gros"] = nom
     ecrire_json(fichier(), d, indent=2)   # atomique
-    return True, "Gros cerveau d'Arthur : %s → %s (%s). Actif dès la prochaine question." % (avant, nom, CHOIX[nom])
+    return True, "Gros cerveau d'Arthur : %s → %s (%s). Actif dès la prochaine question." % (avant, nom, tous[nom])
 
 
 def etat():
     a = actuel()
-    lignes = ["Gros cerveau d'Arthur (couche 3) : %s — %s" % (a, CHOIX.get(a, "?")), "Choix possibles :"]
-    lignes += ["  %s %-7s %s" % ("→" if k == a else " ", k, v) for k, v in CHOIX.items()]
-    lignes.append("Changer : arthur-cerveau <%s>" % "|".join(CHOIX))
+    tous = choix_possibles()
+    lignes = ["Gros cerveau d'Arthur (couche 3) : %s — %s" % (a, tous.get(a, "?")), "Choix possibles :"]
+    lignes += ["  %s %-9s %s" % ("→" if k == a else " ", k, v) for k, v in tous.items()]
+    lignes.append("Changer : arthur-cerveau <%s>" % "|".join(tous))
+    lignes.append("Ajouter un cerveau (DeepSeek, Claude, Mistral...) : voir cerveaux.exemple.json")
     return "\n".join(lignes)
 
 

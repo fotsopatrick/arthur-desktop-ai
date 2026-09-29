@@ -1,0 +1,53 @@
+{
+  "_lisez_moi": "Copie la cle \"cerveaux\" (et \"cerveau_repli\" si tu veux) dans reglages-maison.json, puis : python3 arthur_cerveau.py <nom>. Les cles d'API ne s'ecrivent JAMAIS ici : seulement le NOM de la variable d'environnement qui les contient (cle_env). Tout cerveau payant reste bloque tant que ~/.config/budget-nebius.json n'autorise pas une depense (voir budget_nebius.py). Verifie les noms de modeles chez chaque fournisseur : ils changent.",
+
+  "cerveau_repli": ["qwen"],
+
+  "cerveaux": {
+    "deepseek": {
+      "type": "openai",
+      "url": "https://api.deepseek.com/chat/completions",
+      "modele": "deepseek-chat",
+      "cle_env": "DEEPSEEK_API_KEY",
+      "payant": true
+    },
+    "claude": {
+      "type": "anthropic",
+      "modele": "claude-opus-5-5",
+      "effort": "low",
+      "cle_env": "ANTHROPIC_API_KEY",
+      "payant": true,
+      "_note": "Necessite : pip install anthropic. Moins cher : claude-sonnet-5-5 ou claude-haiku-4-5."
+    },
+    "mistral": {
+      "type": "openai",
+      "url": "https://api.mistral.ai/v1/chat/completions",
+      "modele": "mistral-small-latest",
+      "cle_env": "MISTRAL_API_KEY",
+      "payant": true
+    },
+    "openrouter": {
+      "type": "openai",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "modele": "A-CHOISIR-sur-openrouter.ai/models",
+      "cle_env": "OPENROUTER_API_KEY",
+      "payant": true
+    },
+    "nemotron-nano": {
+      "type": "openai",
+      "url": "https://api.studio.nebius.com/v1/chat/completions",
+      "modele": "A-VERIFIER-avec-GET-/v1/models (ex. Nemotron 3 Nano)",
+      "cle_env": "NEBIUS_API_KEY",
+      "payant": true,
+      "jetons_max": 900,
+      "_note": "Le plus petit Nemotron chez Nebius : rapide et peu cher pour les questions simples."
+    },
+    "ollama": {
+      "type": "ollama",
+      "url": "http://127.0.0.1:11434/api/chat",
+      "modele": "A-CHOISIR (ollama list)",
+      "payant": false,
+      "_note": "Gratuit : un modele qui tourne sur ce PC."
+    }
+  }
+}

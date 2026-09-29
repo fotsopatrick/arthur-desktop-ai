@@ -4,3 +4,5 @@
 #             executant interne suit exactement le meme graphe) et sait le
 #             dessiner (--dessin).
 langgraph>=1.0
+# anthropic : seulement si tu declares un cerveau Claude (fournisseurs.py).
+anthropic>=1.0

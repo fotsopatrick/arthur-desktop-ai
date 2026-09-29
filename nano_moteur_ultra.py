@@ -47,6 +47,14 @@ try:
 except Exception:
     nemotron_nebius = None
 
+# LES CERVEAUX INTERCHANGEABLES (29/09/2026) : DeepSeek, Claude, Mistral,
+# OpenRouter... se declarent dans reglages-maison.json -> "cerveaux" (voir
+# fournisseurs.py). qwen, local et nebius restent geres ici.
+try:
+    import fournisseurs
+except Exception:
+    fournisseurs = None
+
 # LES DOCUMENTS LOCAUX (29/09/2026) : rag_local.py cherche dans documents/,
 # sur cette machine, sans reseau. Il sert quand Alice ou « rag_maison » ne
 # sont pas la — c'est-a-dire chez tout le monde sauf Patrick.
@@ -584,6 +592,31 @@ class NanoMoteurUltraEngine:
             self.noter_alice_muette()
             return None, str(e)[:120]
 
+    def _cerveau_externe(self, choix=None):
+        """Le nom du cerveau choisi s'il est declare dans fournisseurs.py
+        (deepseek, claude...), sinon None (qwen, local, nebius, aucun)."""
+        choix = choix or getattr(self, "_choix", None)
+        if fournisseurs is None or not choix or choix == "aucun":
+            return None
+        f = fournisseurs.fiche(choix)
+        return choix if f and f.get("type") != "interne" else None
+
+    def demander_au_cerveau(self, question, extraits=None):
+        """Lire des extraits (ou repondre) avec le cerveau CHOISI. Rend
+        (reponse, panne). Un cerveau declare (deepseek, claude...) d'abord ;
+        s'il ne repond pas, Qwen sur Alice, comme avant."""
+        if getattr(self, "_sans_reseau", False):
+            return None, "mode sans cerveau : aucun appel reseau"
+        externe = self._cerveau_externe()
+        if externe:
+            d = fournisseurs.demander(externe, question, extraits, consigne=CONSIGNE_ALICE)
+            if d.get("reponse"):
+                return d["reponse"], None
+            reponse, panne = self.demander_a_alice(question, extraits)
+            return reponse, ("%s : %s ; %s" % (externe, d.get("panne"), panne)
+                             if not reponse else None)
+        return self.demander_a_alice(question, extraits)
+
     def demander_a_morgan(self, prompt):
         """Passe la main a morgan, le nemotron LOCAL (ollama) sur cette
         machine : question gratuite et privee, jamais en ligne.
@@ -673,6 +706,7 @@ class NanoMoteurUltraEngine:
         t0 = time.perf_counter_ns()
         self._sans_reseau = (choisir == "aucun")
         self._citation = None
+        self._choix = choisir or _reglage_maison("cerveau_gros", "qwen")
         prompt_norm = self.normaliser(prompt)
         prompt_norm = self._sans_la_politesse(prompt_norm)
 
@@ -813,7 +847,7 @@ class NanoMoteurUltraEngine:
                     extraits, combien = self.chercher_dans_la_maison(prompt_norm)
                     panne = getattr(self, "_panne_maison", "")
                     if extraits:
-                        reponse, panne = self.demander_a_alice(prompt, extraits)
+                        reponse, panne = self.demander_au_cerveau(prompt, extraits)
                         if reponse:
                             return self._sortie(
                                 True,
@@ -848,7 +882,7 @@ class NanoMoteurUltraEngine:
             # epreuve test_arthur_le_bonjour_ne_gene_pas.py).
             extraits, combien = self.chercher_dans_les_documents(prompt_norm)
             if extraits:
-                reponse, panne = self.demander_a_alice(prompt, extraits)
+                reponse, panne = self.demander_au_cerveau(prompt, extraits)
                 if reponse:
                     return self._sortie(
                         True,
@@ -914,6 +948,19 @@ class NanoMoteurUltraEngine:
                         True, raison + " — passe a Nemotron local (morgan, ollama).",
                         reponse, "local", 0.0, t0, source="local")
 
+            # UN CERVEAU DECLARE (29/09/2026) : deepseek, claude, mistral...
+            # (fournisseurs.py). Muet ou en panne -> on redescend a Qwen.
+            externe = self._cerveau_externe(choix)
+            if externe:
+                d = fournisseurs.demander(externe, prompt, consigne=CONSIGNE_ALICE)
+                if d.get("reponse"):
+                    if "je ne sais pas" in d["reponse"].lower():
+                        self._consigner_lacune(prompt_norm, raison)
+                    return self._sortie(True, raison + " — passé à %s (%s)." % (
+                                            externe, d.get("modele") or "?"),
+                                        d["reponse"], externe, 0.0, t0, source=externe)
+                raison += " %s : %s." % (externe, d.get("panne"))
+
             reponse, panne = self.demander_a_alice(prompt)
             if reponse:
                 # Alice a repondu « Je ne sais pas » ? C'est une LACUNE
@@ -947,7 +994,7 @@ class NanoMoteurUltraEngine:
         if importants:
             extraits, combien = self.chercher_dans_les_documents(prompt_norm)
             if extraits:
-                reponse, panne = self.demander_a_alice(prompt, extraits)
+                reponse, panne = self.demander_au_cerveau(prompt, extraits)
                 if reponse:
                     return self._sortie(
                         True,

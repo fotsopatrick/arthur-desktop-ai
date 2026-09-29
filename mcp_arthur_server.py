@@ -154,11 +154,11 @@ def main():
                             },
                             {
                                 "name": "arthur_cerveau",
-                                "description": "Voir ou changer le gros cerveau d'Arthur (couche 3) : qwen (Alice, gratuit), nebius (NVIDIA Nemotron chez Nebius, payant), local (ollama sur ce PC). Sans argument : rend le cerveau actuel. Actif dès la question suivante.",
+                                "description": "Voir ou changer le gros cerveau d'Arthur (couche 3) : qwen (Alice, gratuit), nebius (NVIDIA Nemotron chez Nebius, payant), local (ollama sur ce PC), ou un cerveau declare (DeepSeek, Claude, Mistral... voir fournisseurs.py). Sans argument : rend le cerveau actuel. Actif dès la question suivante.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
-                                        "cerveau": {"type": "string", "enum": ["qwen", "nebius", "local"]}
+                                        "cerveau": {"type": "string", "description": "qwen, nebius, local, ou tout cerveau declare dans reglages-maison.json -> cerveaux (deepseek, claude...)"}
                                     }
                                 }
                             }
