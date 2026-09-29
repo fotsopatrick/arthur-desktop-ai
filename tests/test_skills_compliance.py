@@ -21,6 +21,13 @@ import pytest
 MAISON = os.path.expanduser("~")
 SKILLS = os.path.join(MAISON, ".claude", "skills")
 
+# (29/09) Ces SKILL.md vivent dans ~/.claude/skills, hors du depot : sur une
+# autre machine, la serie est sautee (et le dit) au lieu d'echouer.
+if not all(os.path.isfile(os.path.join(SKILLS, n, "SKILL.md"))
+           for n in ("beelzebuth", "jimmy", "fixe-de-bug")):
+    pytest.skip("SKILL.md de beelzebuth/jimmy/fixe-de-bug absents (~/.claude/skills, hors du depot)",
+                allow_module_level=True)
+
 CIBLES = {
     "beelzebuth": os.path.join(SKILLS, "beelzebuth", "SKILL.md"),
     "jimmy": os.path.join(SKILLS, "jimmy", "SKILL.md"),

@@ -53,7 +53,15 @@ import urllib.request as U
 vrai = U.urlopen
 U.urlopen = lambda *a, **k: parti.append(1) or (_ for _ in ()).throw(RuntimeError("ne devait pas partir"))
 d = N.demander("pourquoi le ciel est bleu ?", cle="cle-de-test")
+# (29/09) chat() ne prend pas de cle en argument : sans cle (machine neuve),
+# il s'arretait sur « cle absente » avant meme de regarder le plafond.
+_avant = os.environ.get("NEBIUS_API_KEY")
+os.environ["NEBIUS_API_KEY"] = "cle-de-test"
 c = N.chat([{"role": "user", "content": "bonjour"}])
+if _avant is None:
+    os.environ.pop("NEBIUS_API_KEY")
+else:
+    os.environ["NEBIUS_API_KEY"] = _avant
 U.urlopen = vrai
 dire(not parti and d.get("reponse") is None and "plafond" in (d.get("panne") or "").lower(),
      "demander : refuse AVANT d'envoyer, et le dit")

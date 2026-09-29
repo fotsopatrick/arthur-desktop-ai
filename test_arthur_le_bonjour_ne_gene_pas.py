@@ -51,6 +51,7 @@ def demander(question, delai=140):
         d = json.loads(urllib.request.urlopen(r, timeout=delai).read().decode("utf-8"))
     except Exception as e:
         d = {"answer": "", "cle": None, "_panne": str(e)[:60]}
+        print("        panne : " + d["_panne"])   # dit POURQUOI (29/09)
     return d
 
 

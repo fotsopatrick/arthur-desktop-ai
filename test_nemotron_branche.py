@@ -14,8 +14,13 @@ il n'est plus jamais appele par le moteur.
 """
 import json, sys, urllib.request, nano_moteur_ultra as M
 
-p = "reglages-maison.json"
-orig = open(p, encoding="utf-8").read()
+import os as _os
+p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "reglages-maison.json")
+# (29/09) Sur une machine neuve le reglage n'existe pas : on part d'un {} et
+# on le RETIRE a la fin, au lieu de planter (ou d'en laisser un faux).
+orig = open(p, encoding="utf-8").read() if _os.path.exists(p) else None
+if orig is None:
+    open(p, "w", encoding="utf-8").write("{}")
 vert = rouge = 0
 
 def dire(ok, t):
@@ -30,7 +35,10 @@ try:
     d["cerveau_gros"] = "nebius"   # on force l'ancien reglage interdit
     json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 finally:
-    open(p, "w", encoding="utf-8").write(orig)
+    if orig is None:
+        _os.remove(p)
+    else:
+        open(p, "w", encoding="utf-8").write(orig)   # on remet le reglage d'origine
 
 # Preuve de code : le moteur ne doit PLUS contenir aucun appel au cloud.
 import os

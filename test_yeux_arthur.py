@@ -26,6 +26,10 @@ def juge(titre, verif, obtenu):
 
 print("\n1) « QUI EST EN LIGNE ? » — il mesure vraiment")
 texte = H.outil_qui_est_en_ligne()
+if "pas pu lancer la connexion" in texte:
+    # (29/09) on DIT pourquoi la tour est muette : sans ssh, les epreuves
+    # sur ses conteneurs ne peuvent pas passer ici.
+    print("  (la tour est injoignable : Je n'ai pas pu lancer la connexion)")
 juge("il repond quelque chose (plus de 60 lettres)",
      lambda n: n > 60, len(texte))
 juge("il nomme la tour", lambda t: t, "Sur la tour" in texte)

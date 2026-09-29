@@ -620,7 +620,8 @@ class Haichi(Gtk.Window):
     # ------------------------------------------------------------------
     # COMMENT ARTHUR CHERCHE — refait le 17/09/2026, apres trois fautes.
     #
-    # 1. IL COUPAIT LA ROUTE. Son premier serveur (porte 8796) repond
+    # 1. IL COUPAIT LA ROUTE. Son premier serveur (ex-porte 8796, aujourd hui
+    #    /api/arthur-action du cockpit 8790, derriere son jeton) repond
     #    {"erreur": "inconnu"} : il REPOND, il ne plante pas. L ancien code
     #    ne se rabattait sur le cockpit que si ca PLANTAIT. Un « je ne sais
     #    pas » poli n est pas une panne — donc le cockpit, qui avait la
@@ -665,7 +666,7 @@ class Haichi(Gtk.Window):
         depart = time.time()
         try:
             corps = json.dumps({"prompt": question, "action": "parler"}).encode("utf-8")
-            r = urllib.request.Request("http://127.0.0.1:8796/api/arthur-action",
+            r = urllib.request.Request(COCKPIT + "/api/arthur-action",
                                        data=corps,
                                        headers=jeton_cockpit.entetes())
             d = json.loads(urllib.request.urlopen(r, timeout=10).read().decode("utf-8"))
