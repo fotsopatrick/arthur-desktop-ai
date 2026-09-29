@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
 # Signature: nominomi
 # B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
 # HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
 
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 LES OUTILS DE HAICHI — pour aller VOIR au lieu de reciter.
@@ -189,7 +189,7 @@ def outil_eveil_systeme():
     """Eveil synthetique : git + agents + systeme en un seul JSON."""
     try:
         from skills.mcp_eveil import eveil
-        r = eveil(os.path.join(ICI, ".."))
+        r = eveil(ICI)   # (29/09) le depot lui-meme, pas son dossier parent
     except Exception as e:
         return f"🔍 Je n'arrive pas a faire l'eveil : {str(e)[:80]}"
 
@@ -227,7 +227,7 @@ def outil_analyse_banc():
     """Analyse le banc de tests via pytest JSON structure."""
     try:
         from skills.mcp_analyse_banc import run_pytest
-        r = run_pytest(os.path.join(ICI, ".."))
+        r = run_pytest(ICI)   # (29/09) le depot lui-meme, pas son dossier parent
     except Exception as e:
         return f"🧪 Je n'arrive pas a lancer les tests : {str(e)[:80]}"
 
@@ -257,7 +257,7 @@ OUTILS = [
       "quelle date", "on est quel jour", "date du jour"], outil_heure),
     (["modules eteints", "modules allumes", "modules du cockpit",
       "combien de modules", "quels modules", "etat du cockpit"], outil_modules),
-    (["veille ia", "veille du matin", "la veille"], outil_veille),
+    (["veille ia", "veille du matin", "la veille$"], outil_veille),
     (["etat du reseau", "combien de connexions", "le reseau de la machine"], outil_reseau),
     (["combien de sujets", "que sais tu faire", "qui es tu", "tes regles",
       "combien tu connais"], outil_moi),
@@ -277,11 +277,23 @@ OUTILS = [
 ]
 
 
+def _expression_presente(e, question):
+    """(29/09) L'expression doit etre faite de MOTS ENTIERS de la question :
+    « la veille » ne se trouve plus dans « la veillee », ni « qui tourne »
+    dans « qui tournent ». Une expression qui finit par « $ » doit en plus
+    FINIR la question : « qui est la$ » repond a « qui est la ? » mais plus
+    a « qui est la presidente de la France ? » (qui partait en SSH)."""
+    fin = e.endswith("$")
+    motif = r"(?<!\w)" + re.escape(e.rstrip("$")) + (r"\s*$" if fin else r"(?!\w)")
+    return re.search(motif, question) is not None
+
+
 def chercher_un_outil(question_normalisee):
     """Rend la fonction de l outil qui correspond, ou None."""
+    q = (question_normalisee or "").strip()
     for expressions, fonction in OUTILS:
         for e in expressions:
-            if e in question_normalisee:
+            if _expression_presente(e, q):
                 return fonction
     return None
 
@@ -343,6 +355,18 @@ def _lire_un_calcul(question):
 
     nombres = re.findall(r"-?\d+(?:[.,]\d+)?", q)
     if len(nombres) != 2:
+        return None
+
+    # (29/09) Le signe doit se trouver ENTRE les deux nombres, et rien d'autre
+    # avec lui : « le plus grand de 3 et 7 » rendait 10, « 3 tours sur 2
+    # sites » rendait 1.5. Seule exception : « multiplie 12 par 12 », ou le
+    # verbe vient avant et « par » seul se tient entre les nombres.
+    places = [m.span() for m in re.finditer(r"-?\d+(?:[.,]\d+)?", q)]
+    entre = " ".join(q[places[0][1]:places[1][0]].split())
+    permis = {"par"}
+    for mots, _ in _EXPRESSIONS + _SIGNES:
+        permis.update(mots)
+    if entre not in permis:
         return None
 
     # D'abord les expressions de deux mots ; on les efface ensuite pour ne pas
@@ -475,12 +499,12 @@ def outil_serveur_va_bien():
 
 
 OUTILS.extend([
-    (["qui est en ligne", "qui est la", "qui tourne", "quels agents sont la",
+    (["qui est en ligne", "qui est la$", "qui est la en ce moment", "qui tourne", "quels agents sont la",
       "qui travaille", "qui est allume", "qui est connecte",
       "les agents en ligne", "qui est present"], outil_qui_est_en_ligne),
     (["le serveur va bien", "la tour va bien", "sante du serveur",
       "etat du serveur", "etat de la tour", "le serveur est il en panne",
-      "le site marche", "le site est en panne", "tout va bien",
+      "le site marche", "le site est en panne", "tout va bien$",
       "y a t il une panne"], outil_serveur_va_bien),
 ])
 

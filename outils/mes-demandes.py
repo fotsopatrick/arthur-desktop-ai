@@ -196,7 +196,10 @@ def reveiller_la_boite():
         pass
     finally:
         s.close()
-    subprocess.Popen(["python3", os.path.expanduser("~/outils/boite-aux-reponses.py")],
+    # (29/09) la boite livree a cote de ce fichier, pas une copie supposee
+    # dans ~/outils (absente d'un clone neuf).
+    boite = os.path.join(os.path.dirname(os.path.abspath(__file__)), "boite-aux-reponses.py")
+    subprocess.Popen(["python3", boite],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      start_new_session=True)
     time.sleep(0.8)
@@ -222,6 +225,7 @@ def montrer(demandes, ouvrir=True):
     if empreinte == ancienne:
         print("PAGE INCHANGEE (%d demande(s)) — on ne rouvre pas" % len(demandes))
         return
+    os.makedirs(os.path.dirname(MARQUE), exist_ok=True)   # machine neuve (29/09)
     open(MARQUE, "w", encoding="utf-8").write(empreinte)
     if os.path.exists(ETEINTE):
         print("PAGE ETEINTE par l interrupteur du cockpit "

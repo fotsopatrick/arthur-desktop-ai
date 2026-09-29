@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import http.server
+import html
 import json
 import os
 import re
@@ -16,6 +17,12 @@ class ArthurUniversalHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(contenu.encode("utf-8"))
 
     def do_POST(self):
+        # (29/09) Retire, mais s'il est relance : n'importe quelle page web
+        # pouvait POSTer ici (pas besoin de CORS pour ecrire). Seule une
+        # requete sans Origin (un programme local) ou venue de 127.0.0.1 passe.
+        origine = self.headers.get("Origin")
+        if origine is not None and origine not in ("http://127.0.0.1:8796", "http://localhost:8796"):
+            return self._envoi(403, json.dumps({"ok": False, "erreur": "origine refusee"}))
         if self.path not in ["/", "/api/arthur-action"]:
             return self._envoi(404, json.dumps({"ok": False, "erreur": "Not Found"}))
         try:
@@ -89,7 +96,7 @@ class ArthurUniversalHandler(http.server.BaseHTTPRequestHandler):
 </head>
 <body>
     <h1>🧩 Application créée par la Salle des Agents</h1>
-    <p>Demande reçue : {prompt}</p>
+    <p>Demande reçue : {html.escape(prompt)}</p>
     <p>Cette application est prête et utilisable localement.</p>
 </body>
 </html>""")

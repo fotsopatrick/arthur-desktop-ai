@@ -19,7 +19,7 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-sys.path.insert(0, os.path.expanduser("~/haichi"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import nemotron_nebius  # noqa: E402
 
 PORT = 8796
@@ -182,33 +182,39 @@ class Poste(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(corps)
 
+    def _serrure(self, ecrire):
+        """(29/09) Seule CETTE machine, par CETTE page, a le droit d'entrer.
+
+        Ecouter sur 127.0.0.1 ne suffit pas : n'importe quel site ouvert dans
+        le navigateur peut envoyer un POST ici (sans meme lire la reponse),
+        et un domaine « rebinde » vers 127.0.0.1 passe pour local.
+          - Host doit etre 127.0.0.1:PORT ou localhost:PORT (anti-rebinding) ;
+          - pour ecrire, Origin (ou Referer) doit etre cette meme page."""
+        port = self.server.server_address[1]   # le port vraiment ecoute
+        hotes = {"127.0.0.1:%d" % port, "localhost:%d" % port}
+        hote = (self.headers.get("Host") or "").lower()
+        if hote not in hotes:
+            return False
+        if not ecrire:
+            return True
+        origine = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if "://" not in origine:
+            return False
+        schema, reste = origine.split("://", 1)
+        return schema == "http" and reste.split("/", 1)[0].lower() == hote
+
     def do_GET(self):
+        if not self._serrure(False):
+            self.send_error(403, "Hote inconnu : requete rejetee.")
+            return
         if self.path in ("/", "/index.html"):
             return self._envoyer(PAGE, "text/html")
         if self.path == "/etat":
             return self._envoyer(json.dumps(etat_du_coffre()))
         self.send_error(404)
 
-    def _d_ou_vient(self):
-        """De quel hote la requete pretend venir.
-
-        Un navigateur envoie toujours lorigine pour un POST. Sans lui, ou si
-        elle designe une autre machine, la serrure reste fermee. On accepte
-        seulement quand ce coincide avec l hote qui reçoit (le serveur tourne
-        sur 127.0.0.1, seule cette machine y accede)."""
-        origine = self.headers.get("Origin") or self.headers.get("Referer") or ""
-        hote = self.headers.get("Host") or ""
-        if not hote:
-            return None
-        netloc = origine
-        if "://" in netloc:                     # Referer porte un chemin
-            netloc = netloc.split("://", 1)[1].split("/", 1)[0]
-        if not netloc:
-            return None
-        return netloc if netloc == hote else None
-
     def do_POST(self):
-        if self._d_ou_vient() is None:
+        if not self._serrure(True):
             self.send_error(403, "Origine inconnue : requete rejetee.")
             return
         taille = int(self.headers.get("Content-Length") or 0)

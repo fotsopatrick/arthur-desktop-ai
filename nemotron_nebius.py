@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
 # Signature: nominomi
 # B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
 # HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
 
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 L'ETAGE NEMOTRON — le gros cerveau d'Arthur, chez Nebius.

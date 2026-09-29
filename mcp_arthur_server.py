@@ -23,6 +23,19 @@ def _repondre(msg_id, texte):
     sys.stdout.flush()
 
 
+def _erreur(msg_id, code, message):
+    """(29/09) Toute requete qui porte un id recoit une reponse : sans elle,
+    le client MCP attend pour toujours (methode inconnue, outil inconnu,
+    exception)."""
+    if msg_id is None:
+        return
+    sys.stdout.write(json.dumps({
+        "jsonrpc": "2.0", "id": msg_id,
+        "error": {"code": code, "message": message},
+    }) + "\n")
+    sys.stdout.flush()
+
+
 def envoyer_vers_arthur(prompt, action="parler"):
     # (24/09) le cockpit répond lui-même, par le moteur à étages, derrière son jeton ;
     # l'ancien serveur 8796 (sans jeton, ouvert à toute page web) n'est plus lancé.
@@ -42,6 +55,7 @@ def main():
         line = sys.stdin.readline()
         if not line:
             break
+        req = None
         try:
             req = json.loads(line)
             method = req.get("method")
@@ -119,7 +133,7 @@ def main():
                                         "target": {"type": "string", "description": "Chaîne ou regex à chercher"},
                                         "replace": {"type": "string", "description": "Chaîne de remplacement"},
                                         "regex": {"type": "boolean", "description": "Interpréter target comme regex (défaut: false)"},
-                                        "dry_run": {"type": "boolean", "description": "Simuler sans modifier (défaut: false)"}
+                                        "dry_run": {"type": "boolean", "description": "Simuler sans modifier (défaut: true — passer false pour écrire)"}
                                     },
                                     "required": ["glob", "target", "replace"]
                                 }
@@ -155,9 +169,9 @@ def main():
                 sys.stdout.flush()
 
             elif method == "tools/call":
-                params = req.get("params", {})
+                params = req.get("params") or {}
                 tool_name = params.get("name")
-                args = params.get("arguments", {})
+                args = params.get("arguments") or {}
 
                 if tool_name == "arthur_parler":
                     msg = args.get("message", "")
@@ -197,7 +211,7 @@ def main():
                     sys.stdout.flush()
 
                 elif tool_name == "eveil_systeme":
-                    repo = args.get("repo", "~/haichi") or "~/haichi"
+                    repo = args.get("repo") or REPO
                     from skills.mcp_eveil import eveil
                     data = eveil(os.path.expanduser(repo))
                     _repondre(msg_id, json.dumps(data, ensure_ascii=False, indent=2))
@@ -216,7 +230,7 @@ def main():
                         args.get("target", ""),
                         args.get("replace", ""),
                         use_regex=bool(args.get("regex", False)),
-                        dry_run=bool(args.get("dry_run", False)),
+                        dry_run=bool(args.get("dry_run", True)),
                         base_dir=REPO,
                     )
                     _repondre(msg_id, json.dumps(data, ensure_ascii=False, indent=2))
@@ -240,8 +254,21 @@ def main():
                     )
                     _repondre(msg_id, json.dumps(data, ensure_ascii=False, indent=2))
 
+                else:
+                    _erreur(msg_id, -32602, "outil inconnu : %s" % tool_name)
+
+            elif method == "ping":
+                sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}) + "\n")
+                sys.stdout.flush()
+
+            elif msg_id is not None:
+                _erreur(msg_id, -32601, "methode inconnue : %s" % method)
+
         except Exception as e:
             sys.stderr.write(f"Erreur MCP Arthur: {e}\n")
+            # une ligne qui n'est meme pas du JSON n'a pas d'id a qui repondre
+            _erreur(req.get("id") if isinstance(req, dict) else None,
+                    -32603, "erreur interne : %s" % str(e)[:200])
 
 if __name__ == "__main__":
     main()

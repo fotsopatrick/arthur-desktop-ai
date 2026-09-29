@@ -30,3 +30,12 @@ reglages-maison.json
 
 # (24/09) les fiches de santé retirées restent sur la machine, jamais dans le dépôt public
 fiches-medicales-retirees.json
+
+# (29/09) la file des lacunes est un etat vivant : le moteur y ecrit les vraies
+# questions de l'utilisateur a chaque aveu. Elle reste sur la machine.
+lacunes.json
+# (29/09) etats de travail du garde et des outils MCP
+quarantaine.json
+fiches-attente.json
+graphe.json
+*.mcp_tmp

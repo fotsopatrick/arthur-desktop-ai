@@ -70,6 +70,10 @@ try:
 finally:
     if sauvegarde is not None:
         open(chemin_conf, "w", encoding="utf-8").write(sauvegarde)
+    elif os.path.exists(chemin_conf):
+        # (29/09) sans ce retrait, le faux reglage restait dans le depot et
+        # faisait echouer test_arthur_cerveau.py au lancement suivant.
+        os.remove(chemin_conf)
 
 
 print("\n2) LE GROS CERVEAU MUET : TIMEOUT -> AVEOU, PAS DE PLANTAGE")
