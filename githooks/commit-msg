@@ -1,0 +1,19 @@
+#!/bin/sh
+# GARDE-FOU (18/09/2026) — toute modification d'Arthur/Braignak doit etre
+# DETAILLEE et EXPLIQUEE. Ce hook REFUSE un message trop court.
+# Il exige : CE QUI a change, POURQUOI, QUELS fichiers.
+msg=$(cat "$1")
+chars=$(printf '%s' "$msg" | wc -c)
+lignes=$(printf '%s\n' "$msg" | grep -c .)
+if [ "$chars" -lt 120 ] || [ "$lignes" -lt 3 ]; then
+  echo "==============================================================="
+  echo "REFUS : message de commit trop court ($chars car., $lignes ligne(s))."
+  echo "Toute modification d'Arthur/Braignak doit etre DETAILLEE et EXPLIQUEE :"
+  echo "  1. CE QUI a change"
+  echo "  2. POURQUOI (la cause, le besoin)"
+  echo "  3. QUELS fichiers"
+  echo "Minimum : 3 lignes et 120 caracteres."
+  echo "==============================================================="
+  exit 1
+fi
+exit 0
