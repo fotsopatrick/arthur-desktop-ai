@@ -1,0 +1,725 @@
+# --- TATOUAGE CRYPTOGRAPHIQUE INAMOVIBLE ---
+# Signature: nominomi
+# B64_PROOF = "bm9taW5vbWktcGF0cmljay1jcmVhdGlvbi1zb3V2ZXJhaW5lLTIwMjY="
+# HASH_PROOF = "af6152e817c761ccf74e9430053b2bd172802a3df02fd8a9bc8a13a415d40433"
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+LES OUTILS DE HAICHI — pour aller VOIR au lieu de reciter.
+
+Une regle ecrite ne change jamais : « la tour est une plateforme de pilotage ».
+Un OUTIL, lui, va regarder maintenant : quelle heure il est, quels modules sont
+allumes, si la veille du matin tourne. C est ce qui manquait a Haichi.
+
+Ne le 15/09/2026, d une demande de Patrick : « il n a pas acces a l outil
+veille IA ». La reponse honnete etait : la veille IA ne tourne meme pas.
+Un outil doit pouvoir dire ca, au lieu d inventer.
+
+Chaque outil a : des mots qui le reveillent, et une fonction qui va voir.
+"""
+import json, socket, re, os, datetime, unicodedata, urllib.request, inspect
+
+ICI = os.path.dirname(os.path.abspath(__file__))
+COCKPIT = "http://127.0.0.1:8790"
+
+
+def _lire(url, patience=6):
+    with urllib.request.urlopen(url, timeout=patience) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def _port_ouvert(port, patience=0.4):
+    s = socket.socket(); s.settimeout(patience)
+    try:
+        s.connect(("127.0.0.1", int(port))); return True
+    except Exception:
+        return False
+    finally:
+        s.close()
+
+
+# Ou vit la liste des modules du cockpit.
+#
+# Le 16/09/2026, Arthur repondait « je n arrive pas a lire la liste des
+# modules ». La raison : ce fichier-ci vit dans ~/haichi, et le cockpit ne
+# fait que POINTER dessus par un lien. Python resout le lien, donc il
+# cherchait config.json a cote du vrai fichier — ou il n'y en a pas.
+#
+# On ne devine donc pas un seul chemin : on regarde les lieux connus dans
+# l'ordre, et on dit lequel a servi. Meme lecon que « copier sans les
+# conditions » : un fichier deplace emporte rarement son voisinage.
+_LIEUX_DE_LA_CONFIGURATION = [
+    os.path.join(ICI, "config.json"),
+    os.path.expanduser("~/cockpit-generique/config.json"),
+]
+
+
+def _ou_est_la_configuration():
+    """Rend le premier chemin qui existe vraiment, ou None."""
+    for chemin in _LIEUX_DE_LA_CONFIGURATION:
+        if os.path.exists(chemin):
+            return chemin
+    return None
+
+
+def _modules():
+    """Rend (allumes, eteints) : deux listes de (nom, port)."""
+    chemin = _ou_est_la_configuration()
+    if not chemin:
+        return [], []
+    try:
+        d = json.load(open(chemin, encoding="utf-8"))
+    except Exception:
+        return [], []
+    allumes, eteints = [], []
+    for p in d.get("pages", []):
+        m = re.search(r":(\d+)", p.get("url", ""))
+        if not m:
+            continue
+        nom, port = p.get("nom", "?"), m.group(1)
+        (allumes if _port_ouvert(port) else eteints).append((nom, port))
+    return allumes, eteints
+
+
+# ── les outils, un par un ──────────────────────────────────────────────────
+
+def outil_heure():
+    m = datetime.datetime.now()
+    jours = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"]
+    mois = ["janvier","fevrier","mars","avril","mai","juin","juillet","aout",
+            "septembre","octobre","novembre","decembre"]
+    return (f"🕐 Il est {m.strftime('%H:%M')} — nous sommes {jours[m.weekday()]} "
+            f"{m.day} {mois[m.month-1]} {m.year}. (heure de cette machine)")
+
+
+def outil_modules():
+    allumes, eteints = _modules()
+    if not allumes and not eteints:
+        return "Je n arrive pas a lire la liste des modules du cockpit."
+    txt = (f"🎛️ Le cockpit a {len(allumes) + len(eteints)} modules : "
+           f"{len(allumes)} allumes et {len(eteints)} eteints.")
+    if eteints:
+        txt += "\n\nLes eteints :\n" + "\n".join(
+            f"  • {n} (port {p})" for n, p in eteints[:12])
+        if len(eteints) > 12:
+            txt += f"\n  • ... et {len(eteints)-12} autres."
+    return txt
+
+
+def outil_veille():
+    allume = _port_ouvert(8011)
+    if not allume:
+        return ("📰 La veille IA du matin est ETEINTE. Son module vit sur le "
+                "port 8011 de cette machine, et personne n y repond. "
+                "Je ne peux donc rien en lire — je ne vais pas inventer.")
+    try:
+        page = _lire("http://127.0.0.1:8011/", 8)
+        titres = re.findall(r"<h[23][^>]*>(.*?)</h[23]>", page, re.S)[:6]
+        titres = [re.sub(r"<[^>]+>", "", t).strip() for t in titres]
+        if titres:
+            return "📰 La veille IA du matin dit :\n\n" + "\n".join(
+                f"  • {t[:110]}" for t in titres if t)
+        return "📰 La veille IA du matin repond, mais je n y trouve aucun titre."
+    except Exception as e:
+        return f"📰 La veille IA du matin repond mal : {str(e)[:70]}"
+
+
+def outil_reseau():
+    try:
+        d = json.loads(_lire(COCKPIT + "/api/reseau/statut", 8))
+        r = d.get("resume", {})
+        c = d.get("capture", {})
+        return (f"🌐 Reseau de la machine {c.get('machine','?')}, releve a "
+                f"{c.get('maintenant','?')} : {r.get('connexions','?')} connexions "
+                f"ouvertes, {r.get('process','?')} programmes qui parlent au reseau.")
+    except Exception as e:
+        return f"🌐 Je n arrive pas a lire l etat du reseau : {str(e)[:70]}"
+
+
+def outil_cockpit_gouvernance():
+    """Interroge le Cockpit d'Agents (System C) sur l'état de gouvernance et des agents."""
+    try:
+        d = json.loads(_lire(COCKPIT + "/api/gouvernance/etat", 4))
+        if not d.get("ok"):
+            return "🏛️ Le Cockpit d'Agents répond mais son état de gouvernance est indisponible."
+        
+        agents = d.get("agents", [])
+        decisions = d.get("decisions", [])
+        gardes = d.get("garde_fous", [])
+        
+        allumes = [a["nom"] for a in agents if a.get("etat") == "allume"]
+        musele = [a["nom"] for a in agents if a.get("etat") != "allume"]
+        
+        txt = "🏛️ GOUVERNANCE DU COCKPIT D'AGENTS (System C) :\n"
+        txt += f"• Agents actifs ({len(allumes)}/{len(agents)}) : {', '.join(allumes)}\n"
+        if musele:
+            txt += f"• Agents muselés/surveillés : {', '.join(musele)}\n"
+        txt += f"• Décisions en attente d'arbitrage : {len(decisions)}\n"
+        txt += f"• Garde-fous mécaniques actifs : {len(gardes)} (murs stricts sans exception)\n"
+        txt += f"• Relevé à : {d.get('horodatage', 'maintenant')}"
+        return txt
+    except Exception as e:
+        return f"🏛️ Le Cockpit d'Agents est injoignable sur {COCKPIT} : {str(e)[:70]}."
+
+
+def outil_moi():
+    try:
+        import nano_moteur_ultra as m
+        n = len(m.ENGINE.base)
+        circuits = len([k for k in m.ENGINE.base if k.startswith("circuit")])
+        return (f"🧠 Je connais {n} sujets par coeur, dont {circuits} circuits de la tour. "
+                f"Je reponds en moins d un millieme de seconde quand la reponse est "
+                f"dans mes regles. Sinon je vais voir ailleurs, et si personne ne "
+                f"sait, je le dis.")
+    except Exception as e:
+        return f"🧠 Je n arrive pas a me compter moi-meme : {str(e)[:70]}"
+
+
+# ── quel outil pour quelle question ───────────────────────────────────────
+# Chaque outil est reveille par des expressions. On exige une expression
+# ENTIERE, pas un mot isole : sinon "l heure de la tour" reveillerait l horloge.
+
+# ── OUTILS MCP LOCAUX (21/09/2026) ────────────────────────────────────────
+# Trois outils MCP locaux remplacent le bash brut. Ils rendent du JSON
+# structure que l'outil traduit ici en texte lisible pour Arthur.
+# Aucun appel bash, aucun parsing de texte, aucune cle API.
+
+def outil_eveil_systeme():
+    """Eveil synthetique : git + agents + systeme en un seul JSON."""
+    try:
+        from skills.mcp_eveil import eveil
+        r = eveil(os.path.join(ICI, ".."))
+    except Exception as e:
+        return f"🔍 Je n'arrive pas a faire l'eveil : {str(e)[:80]}"
+
+    git = r.get("git", {})
+    sys_info = r.get("system", {})
+    agents = r.get("agents", {})
+
+    # Git
+    branch = git.get("branch", "?")
+    clean = "propre" if git.get("clean") else "modifie"
+    commits = git.get("last_commits", [])
+    dernier = commits[0]["message"][:60] if commits else "?"
+
+    # Systeme
+    hostname = sys_info.get("hostname", "?")
+    load = sys_info.get("load_1m", "?")
+    mem = sys_info.get("mem_used_pct", "?")
+    disk = sys_info.get("disk_used_pct", "?")
+
+    # Agents
+    up = [n for n, d in agents.items() if d.get("status") == "up"]
+    down = [n for n, d in agents.items() if d.get("status") == "down"]
+
+    txt = f"🔍 EVEIL SYNTHETIQUE ({hostname})\n"
+    txt += f"  Git : branche {branch}, arbre {clean}. Dernier commit : {dernier}\n"
+    txt += f"  Systeme : charge {load}, RAM {mem}%, disque {disk}%\n"
+    if up:
+        txt += f"  Agents UP : {', '.join(up)}\n"
+    if down:
+        txt += f"  Agents DOWN : {', '.join(down)}\n"
+    return txt
+
+
+def outil_analyse_banc():
+    """Analyse le banc de tests via pytest JSON structure."""
+    try:
+        from skills.mcp_analyse_banc import run_pytest
+        r = run_pytest(os.path.join(ICI, ".."))
+    except Exception as e:
+        return f"🧪 Je n'arrive pas a lancer les tests : {str(e)[:80]}"
+
+    total = r.get("total", 0)
+    passed = r.get("passed", 0)
+    failed = r.get("failed", 0)
+    errors = r.get("errors", 0)
+    duration = r.get("duration_s", 0)
+
+    if failed == 0 and errors == 0:
+        return f"🧪 BANC DE TESTS : {passed}/{total} verts en {duration}s. Aucun rouge."
+
+    txt = f"🧪 BANC DE TESTS : {passed}/{total} verts, {failed} rouge(s), {errors} erreur(s) en {duration}s.\n"
+    for f_item in r.get("failures", [])[:5]:
+        txt += f"  ❌ {f_item.get('test', '?')} dans {f_item.get('file', '?')} : {f_item.get('message', '')[:100]}\n"
+    return txt
+
+
+def outil_refactor():
+    """Applique un remplacement structure (dry-run par defaut)."""
+    return ("🔧 REFACTOR est disponible via MCP (outil refactor, dry-run par defaut). "
+            "Donne-moi le glob, la cible et le remplacement.")
+
+
+OUTILS = [
+    (["quelle heure", "il est quelle heure", "heure est il", "quel jour",
+      "quelle date", "on est quel jour", "date du jour"], outil_heure),
+    (["modules eteints", "modules allumes", "modules du cockpit",
+      "combien de modules", "quels modules", "etat du cockpit"], outil_modules),
+    (["veille ia", "veille du matin", "la veille"], outil_veille),
+    (["etat du reseau", "combien de connexions", "le reseau de la machine"], outil_reseau),
+    (["combien de sujets", "que sais tu faire", "qui es tu", "tes regles",
+      "combien tu connais"], outil_moi),
+    # OUTILS MCP (21/09/2026) — remplacement du bash brut
+    (["eveil systeme", "etat du systeme", "eveil synthetique",
+      "etat de la machine", "etat du serveur local", "git status"],
+     outil_eveil_systeme),
+    (["lance les tests", "banc de tests", "analyse banc", "teste tout",
+      "les tests passent", "le banc est vert"],
+     outil_analyse_banc),
+    (["refactor", "remplace dans les fichiers", "recherche remplace",
+      "remplacement structure"],
+     outil_refactor),
+    (["etat des agents", "cockpit agents", "qui surveille", "gouvernance des agents",
+      "refus du garde", "system c", "gouvernance"],
+     outil_cockpit_gouvernance),
+]
+
+
+def chercher_un_outil(question_normalisee):
+    """Rend la fonction de l outil qui correspond, ou None."""
+    for expressions, fonction in OUTILS:
+        for e in expressions:
+            if e in question_normalisee:
+                return fonction
+    return None
+
+
+if __name__ == "__main__":
+    for nom, f in [("heure", outil_heure), ("modules", outil_modules),
+                   ("veille", outil_veille), ("reseau", outil_reseau),
+                   ("moi", outil_moi)]:
+        print("=" * 60); print(nom.upper()); print(f())
+
+
+# ── LE CALCUL ────────────────────────────────────────────────────────────────
+# Ne le 16/09/2026. A la question « combien font 17 fois 23 ? », Arthur
+# sortait un circuit sur les rappels. Pourquoi : « combien » et « font » sont
+# des mots qu'il ignore, il ne lui restait que « fois » — et « fois » se
+# trouve dans un circuit. Il repondait donc a cote, avec aplomb.
+#
+# La reparation : un calculateur qui reconnait un calcul AVANT toute regle.
+# Il ne fait JAMAIS tourner le texte de la question comme du programme
+# (« eval »), parce que ce serait ouvrir la porte a n'importe quoi. Il lit les
+# nombres et le signe lui-meme, et refuse tout ce qu'il ne reconnait pas.
+
+# Les expressions de DEUX mots se lisent en premier : « divise par » doit
+# compter pour UN seul signe. Sinon « 144 divise par 12 » trouvait deux signes
+# (« divise » et « par ») et Arthur se taisait au lieu de repondre 12.
+_EXPRESSIONS = [
+    (["divise par", "divises par", "divisee par"], "/"),
+    (["multiplie par", "multiplies par", "multipliee par"], "*"),
+]
+
+# « par » tout seul ne veut rien dire : il accompagne « divise » ou
+# « multiplie », jamais l'un des deux a lui seul. Il est donc retire d'ici.
+_SIGNES = [
+    (["plus", "+", "ajoute", "additionne"],          "+"),
+    (["moins", "-", "soustrais", "enleve"],          "-"),
+    (["fois", "x", "*", "multiplie", "multiplies"],  "*"),
+    (["divise", "divises", "/", "sur"],              "/"),
+]
+
+
+def _lire_un_calcul(question):
+    """Rend (nombre, signe, nombre) si la question EST un calcul, sinon None.
+
+    On veut exactement deux nombres et un seul signe. Tout le reste est
+    refuse : mieux vaut ne pas repondre que repondre a cote.
+    """
+    # On enleve la ponctuation, MAIS on garde le point et la virgule quand ils
+    # sont entre deux chiffres : sinon « 2,5 » devenait « 2 5 », soit deux
+    # nombres au lieu d'un, et Arthur refusait de calculer.
+    q = " " + str(question).lower() + " "
+    # Les accents s'enlevent AVANT tout. Sans ca (16/09/2026), Arthur lisait
+    # « multiplie » mais restait muet devant « multiplié » : il ne savait
+    # compter que si on ecrivait mal. On decompose chaque lettre accentuee
+    # (e + accent) puis on jette les accents, sans toucher aux chiffres.
+    q = "".join(c for c in unicodedata.normalize("NFD", q)
+                if not unicodedata.combining(c))
+    q = re.sub(r"[?!;:]", " ", q)
+    q = re.sub(r"(?<!\d)[.,]|[.,](?!\d)", " ", q)
+
+    nombres = re.findall(r"-?\d+(?:[.,]\d+)?", q)
+    if len(nombres) != 2:
+        return None
+
+    # D'abord les expressions de deux mots ; on les efface ensuite pour ne pas
+    # les recompter mot par mot.
+    trouves = []
+    for mots, signe in _EXPRESSIONS:
+        for mot in mots:
+            if re.search(r"(?<![a-z])" + re.escape(mot) + r"(?![a-z])", q):
+                trouves.append(signe)
+                q = re.sub(r"(?<![a-z])" + re.escape(mot) + r"(?![a-z])", " ", q)
+                break
+
+    if not trouves:
+        for mots, signe in _SIGNES:
+            for mot in mots:
+                motif = (r"(?<![a-z0-9])" + re.escape(mot) + r"(?![a-z0-9])")
+                if re.search(motif, q):
+                    trouves.append(signe)
+                    break
+    if len(trouves) != 1:
+        return None
+
+    try:
+        a = float(nombres[0].replace(",", "."))
+        b = float(nombres[1].replace(",", "."))
+    except ValueError:
+        return None
+    return a, trouves[0], b
+
+
+def _joli(nombre):
+    """4.0 s'ecrit « 4 », et 4.5 s'ecrit « 4.5 »."""
+    if abs(nombre - round(nombre)) < 1e-9:
+        return str(int(round(nombre)))
+    return ("%.6f" % nombre).rstrip("0").rstrip(".")
+
+
+def outil_calcul(question):
+    lu = _lire_un_calcul(question)
+    if lu is None:
+        return None
+    a, signe, b = lu
+    if signe == "/" and b == 0:
+        return "On ne peut pas diviser par zero. Il n'y a pas de resultat."
+    resultat = {"+": a + b, "-": a - b, "*": a * b, "/": (a / b if b else None)}[signe]
+    mot = {"+": "plus", "-": "moins", "*": "fois", "/": "divise par"}[signe]
+    return "%s %s %s = %s" % (_joli(a), mot, _joli(b), _joli(resultat))
+
+
+# On branche le calcul EN PREMIER : avant toutes les regles, avant les
+# circuits. Un calcul n'est jamais une question sur la tour.
+_chercher_un_outil_sans_calcul = chercher_un_outil
+
+
+def _emballer(fonction, question):
+    """Donne la question a l outil qui la reclame, rien aux autres.
+
+    Ne le 18/09/2026. « qui est Victor ? » echouait : le moteur appelait
+    outil_ce_qua_fait_un_agent() sans argument, alors que cet outil a
+    besoin de la question pour savoir DE QUEL agent on parle. On regarde
+    donc la signature : un outil qui demande un parametre le recoit.
+    """
+    if fonction is None:
+        return None
+    try:
+        params = inspect.signature(fonction).parameters
+    except (TypeError, ValueError):
+        return fonction
+    if params:
+        return lambda: fonction(question)
+    return fonction
+
+
+def chercher_un_outil(question_normalisee):
+    """Rend la fonction de l outil qui correspond, ou None.
+
+    Le calcul passe avant tout le reste : sinon un simple « fois » suffisait
+    a declencher un circuit de la tour.
+    """
+    if _lire_un_calcul(question_normalisee) is not None:
+        return lambda: outil_calcul(question_normalisee)
+    trouve = _emballer(_chercher_un_outil_sans_calcul(question_normalisee),
+                       question_normalisee)
+    if trouve is not None:
+        return trouve
+    return _greffon(question_normalisee)
+
+
+def _greffon(question):
+    """Les greffons, APRES les outils d'Arthur (regle 3 des greffons).
+
+    27/09/2026 : les greffons existaient depuis le 16/09 mais rien ne les
+    appelait dans le vrai chemin (cockpit -> chercher_un_outil). Branche ici.
+    """
+    try:
+        import haichi_greffons
+        r = haichi_greffons.essayer(question)
+    except Exception:
+        return None
+    if not r:
+        return None
+    if r.get("panne"):
+        return lambda: f"Le greffon « {r['titre']} » est tombé : {r['panne']}"
+    return lambda: r["reponse"]
+
+
+# ── LES YEUX SUR LA TOUR (16/09/2026) ────────────────────────────────────────
+# Demande de Patrick : « il pourra repondre a "qui est en ligne ?", "le serveur
+# va bien ?" en lisant les vraies donnees ». Les deux outils vivent dans
+# haichi_outils_tour.py parce qu'ils parlent a une autre machine : si cette
+# machine ne repond pas, Arthur doit continuer a marcher sans eux.
+try:
+    import haichi_outils_tour as _tour
+except Exception:          # la tour est injoignable, ou le fichier manque
+    _tour = None
+
+
+def outil_qui_est_en_ligne():
+    if _tour is None:
+        return ("Je ne peux pas regarder qui est en ligne : l'outil qui parle "
+                "a la tour n'a pas pu demarrer. Je prefere te le dire.")
+    return _tour.outil_qui_est_en_ligne()
+
+
+def outil_serveur_va_bien():
+    if _tour is None:
+        return ("Je ne peux pas regarder la sante du serveur : l'outil qui "
+                "parle a la tour n'a pas pu demarrer. Je prefere te le dire.")
+    return _tour.outil_serveur_va_bien()
+
+
+OUTILS.extend([
+    (["qui est en ligne", "qui est la", "qui tourne", "quels agents sont la",
+      "qui travaille", "qui est allume", "qui est connecte",
+      "les agents en ligne", "qui est present"], outil_qui_est_en_ligne),
+    (["le serveur va bien", "la tour va bien", "sante du serveur",
+      "etat du serveur", "etat de la tour", "le serveur est il en panne",
+      "le site marche", "le site est en panne", "tout va bien",
+      "y a t il une panne"], outil_serveur_va_bien),
+])
+
+
+# ── AJOUT DU 16/09/2026 (session orel-39, coordonnee avec orel-40) ──────
+# Un outil de plus : les agents de la SALLE (dive/salle/releve.json).
+# Source DIFFERENTE de celle d'Arthur (lui = conteneurs docker + ports) :
+# ici, les 414 agents qui se parlent dans la salle, par famille, et qui
+# parle le plus. Ajoute en mode additif : il rejoint /api/outils tout seul.
+# Il ne ment pas : si le releve ne repond pas, il le dit.
+def outil_agents_salle():
+    try:
+        d = json.loads(_lire("https://dive.matourdecontrole.fr/salle/releve.json",
+                             patience=8))
+    except Exception:
+        return "Je n arrive pas a lire le releve des agents de la salle."
+    gens = d.get("correspondants") or []
+    if not gens:
+        return "Le releve des agents de la salle est vide."
+    fam = {}
+    for a in gens:
+        f = a.get("famille", "autre")
+        fam[f] = fam.get(f, 0) + 1
+    top = sorted(gens, key=lambda x: -(x.get("total", 0)))[:3]
+    txt = (u"\U0001F465 " + str(len(gens)) + " agents dans la salle. Par famille : "
+           + ", ".join("%s %d" % (k, v)
+                       for k, v in sorted(fam.items(), key=lambda x: -x[1])))
+    txt += ". Les plus actifs : " + ", ".join(
+        "%s (%d messages)" % (a.get("nom", "?"), a.get("total", 0)) for a in top) + "."
+    return txt
+
+
+OUTILS.extend([
+    (["qui est dans la salle", "les agents de la salle", "qui parle le plus",
+      "combien d agents", "agents actifs", "qui est la maintenant"],
+     outil_agents_salle),
+])
+
+
+# ── 2e OUTIL DU 16/09/2026 (session orel-65) ───────────────────────────
+# « Que font les agents ? » — le meme releve, mais range par FAMILLE :
+# combien d agents dans chaque famille, et combien de messages cette
+# famille a echanges en tout. Le cockpit appelle les outils SANS mot
+# (cockpit.py:1409 fait fonction()), donc cet outil ne demande aucun nom :
+# il donne la vue d ensemble, pas un agent precis.
+# Il precise aussi combien d agents n ont PAS de cervelle (moteur eteint),
+# car c est ce qui dit lesquels sont muets. Il ne ment pas : si le releve
+# ne repond pas, il le dit.
+def outil_que_font_les_agents():
+    try:
+        d = json.loads(_lire("https://dive.matourdecontrole.fr/salle/releve.json",
+                             patience=8))
+    except Exception:
+        return "Je n arrive pas a lire le releve des agents de la salle."
+    gens = d.get("correspondants") or []
+    if not gens:
+        return "Le releve des agents de la salle est vide."
+    # Par famille : combien d agents, et combien de messages en tout.
+    combien = {}
+    messages = {}
+    sans_cervelle = 0
+    for a in gens:
+        f = a.get("famille", "autre")
+        combien[f] = combien.get(f, 0) + 1
+        messages[f] = messages.get(f, 0) + a.get("total", 0)
+        if not a.get("cervelle"):
+            sans_cervelle += 1
+    familles = sorted(combien.keys(), key=lambda k: -messages[k])
+    bouts = ["%s : %d agents, %d messages echanges"
+             % (f, combien[f], messages[f]) for f in familles]
+    txt = (u"\U0001F4CB Ce que font les agents, par famille. "
+           + " ; ".join(bouts) + ".")
+    txt += (" Au total %d agents ont le moteur eteint (aucune cervelle)."
+            % sans_cervelle)
+    return txt
+
+
+OUTILS.extend([
+    (["que font les agents", "les agents par famille", "que fait chaque famille",
+      "a quoi servent les agents", "les familles d agents",
+      "combien d agents sans cervelle", "quels agents sont muets"],
+     outil_que_font_les_agents),
+])
+
+
+# ── 3e OUTIL DU 16/09/2026 (session orel-65, demande de Patrick) ───────
+# « Quels agents ont encore un moteur allume ? » Sur 414, tres peu en ont
+# un. Et attention : un moteur « lecture-seule » veut dire MUSELE (il lit,
+# il n agit pas). L outil le DIT, pour ne pas faire croire qu un agent
+# musele est en pleine forme. Aucun mot en entree (comme tous les outils
+# du cockpit). Il ne ment pas : si le releve ne repond pas, il le dit.
+def outil_agents_moteur_allume():
+    try:
+        d = json.loads(_lire("https://dive.matourdecontrole.fr/salle/releve.json",
+                             patience=8))
+    except Exception:
+        return "Je n arrive pas a lire le releve des agents de la salle."
+    gens = d.get("correspondants") or []
+    if not gens:
+        return "Le releve des agents de la salle est vide."
+    allumes = [a for a in gens if a.get("cervelle")]
+    if not allumes:
+        return "Aucun agent n a de moteur allume en ce moment."
+    # On separe les vrais moteurs des moteurs « lecture-seule » (museles).
+    def moteur(a):
+        c = a.get("cervelle") or {}
+        return (c.get("moteur") if isinstance(c, dict) else str(c)) or "?"
+    museles = [a for a in allumes if "lecture-seule" in moteur(a)]
+    vifs = [a for a in allumes if "lecture-seule" not in moteur(a)]
+    txt = (u"\U0001F50B %d agents sur %d ont un moteur allume. "
+           % (len(allumes), len(gens)))
+    if vifs:
+        txt += "Vraiment actifs : " + ", ".join(
+            "%s (%s)" % (a.get("nom", "?"), moteur(a)) for a in vifs) + ". "
+    if museles:
+        txt += ("Museles (moteur lecture-seule : ils lisent mais n agissent "
+                "pas) : " + ", ".join(a.get("nom", "?") for a in museles) + ".")
+    return txt.strip()
+
+
+OUTILS.extend([
+    (["quels agents ont un moteur", "qui a un moteur allume",
+      "les agents actifs", "qui peut encore agir", "agents avec cervelle",
+      "qui est musele", "moteur allume"],
+     outil_agents_moteur_allume),
+])
+
+
+# ── REDEMARRER LE COCKPIT (16/09/2026, rendu sur le 27/09/2026) ────────
+# Patrick veut pouvoir dire a Arthur « redemarre le cockpit ».
+# AVANT (trouve a la lecture du 27/09) : la phrase lancait rollback-cockpit.sh, qui remettait
+# cockpit.py a l'etiquette « cockpit-ok » du 16/09 (11 jours de travail en arriere), tuait le
+# port 8790 et relancait un cockpit A LA MAIN, hors de son service systemd. « le cockpit est
+# casse » suffisait, et meme un lien ?q=...
+# MAINTENANT : on demande un redemarrage au SERVICE (celui qui se releve seul et lit la cle),
+# en differe de 2 s pour que la reponse parte avant. Le code n'est JAMAIS remonte dans le temps
+# sur une phrase : « rollback » explique le geste, Patrick le fait lui-meme.
+# Epreuve : python3 tests/test_haichi_redemarrer.py
+def outil_redemarrer_cockpit():
+    import subprocess as _sp
+    try:
+        _sp.Popen(["sh", "-c", "sleep 2; systemctl --user restart cockpit"],
+                  stdout=_sp.DEVNULL, stderr=_sp.DEVNULL, start_new_session=True)
+    except Exception as e:
+        return "Je n'ai pas pu demander le redemarrage du cockpit : %s" % str(e)[:100]
+    return ("Je redemarre le cockpit par son service (systemctl --user restart cockpit), dans 2 secondes. "
+            "Le code n'est pas touche. La page va se couper quelques secondes, puis recharge-la.")
+
+
+def outil_expliquer_rollback():
+    return ("Je ne remonte pas le code dans le temps sur une phrase : ca efface le travail recent. "
+            "Pour revenir a la photo « cockpit-ok », lance toi-meme : bash ~/cockpit-generique/rollback-cockpit.sh "
+            "(regarde d'abord la date de l'etiquette : git -C ~/cockpit-generique log -1 cockpit-ok).")
+
+
+OUTILS.extend([
+    (["rollback cockpit", "remets le cockpit", "reviens en arriere sur le cockpit"],
+     outil_expliquer_rollback),
+    (["redemarre le cockpit", "relance le cockpit", "redemarrer le cockpit",
+      "repare le cockpit", "le cockpit est casse", "le cockpit ne repond plus"],
+     outil_redemarrer_cockpit),
+])
+
+
+# ── L'OUTIL QUI MANQUAIT : DÉPOSER POUR DE VRAI (17/09/2026) ───────────
+# Patrick a collé sa discussion avec Arthur : « j'ai transmis ta demande à la
+# salle des agents », dit DEUX FOIS. Puis : « est-ce qu'il a fait le travail ? »
+#
+# TROIS MESURES, ET ELLES SONT ACCABLANTES :
+#   1. la phrase « transmets-la à la salle des agents » est dans sa CONSIGNE :
+#      il la dit parce qu'on lui demande de la dire ;
+#   2. ses trois outils « salle des agents » ne font que LIRE un relevé —
+#      aucun ne dépose ;
+#   3. sa réponse fait 156 caractères, une phrase, toujours la même.
+# Donc Arthur n'a JAMAIS rien transmis. Il annonçait un geste qu'il ne pouvait
+# pas faire, et Patrick attendait.
+#
+# La réparation n'est pas de lui interdire la phrase : c'est de lui donner le
+# geste. Cet outil dépose pour de vrai, rend un numéro qu'on peut vérifier,
+# avoue quand ça rate, et ne dépose pas deux fois la même demande.
+def outil_deposer_pour_les_agents(question):
+    import importlib.util as _iu
+    import os as _os
+    chemin = _os.path.expanduser("~/outils/salle-des-agents.py")
+    try:
+        _s = _iu.spec_from_file_location("salle_des_agents", chemin)
+        _m = _iu.module_from_spec(_s)
+        _s.loader.exec_module(_m)
+    except Exception as e:
+        return ("Je n'ai pas pu ouvrir la salle des agents : %s. "
+                "Je ne te dis donc PAS que c'est transmis." % str(e)[:80])
+    return _m.phrase_pour_arthur(question)
+
+
+OUTILS.extend([
+    (["je veux une application", "je veux une appli", "developpe une",
+      "code moi", "code-moi", "fais moi une application",
+      "fais-moi une application", "cree une application",
+      "transmets a la salle des agents", "transmets aux agents",
+      "donne ca aux agents", "passe ca aux agents"],
+     outil_deposer_pour_les_agents),
+])
+
+
+# ── LE SOUVENIR DES 25 AGENTS (17/09/2026) ────────────────────────────
+# Patrick a demandé à Braignak « qu'est-ce que tu as fait aujourd'hui ? ».
+# Réponse : « je n'ai pas de corps, pas d'horloge, pas de journées ». Mesuré :
+# ça venait du gros cerveau DANS LES NUAGES, qui ne connaît rien de la tour.
+# Or les 25 agents avaient tout leur travail dans l'ancien Odoo — 134
+# compétences, 2 189 exploits. Rien n'était branché.
+# On le branche ICI, sur le cerveau PARTAGÉ : Arthur, Braignak, Morgan et la
+# page du tableau de bord passent tous par cette porte. Un seul geste, et
+# tout le monde se souvient.
+def outil_ce_qua_fait_un_agent(question):
+    import importlib.util as _iu
+    import os as _os
+    chemin = _os.path.expanduser("~/outils/ce-qua-fait-un-agent.py")
+    # (24/09) Sur une machine qui n'a pas cet outil (celle d'un juge, par exemple),
+    # on ne répond pas « je n'ai pas pu ouvrir » : on laisse la main aux règles écrites.
+    if not _os.path.exists(chemin):
+        return ""
+    try:
+        _s = _iu.spec_from_file_location("ce_qua_fait_un_agent", chemin)
+        _m = _iu.module_from_spec(_s)
+        _s.loader.exec_module(_m)
+    except Exception as e:
+        return ("Je n'ai pas pu ouvrir le souvenir des agents : %s. "
+                "Je ne t'invente donc rien." % str(e)[:70])
+    return _m.ce_qua_fait(question) or ""
+
+
+OUTILS.extend([
+    (["qu a fait", "qu as tu fait", "que sait faire", "les exploits de",
+      "le travail de", "les competences de", "le niveau de",
+      "qui est victor", "qui est clark", "qui est chloe", "qui est raph",
+      "qui est jimmy", "qui est braignak", "qui est pete", "qui est lois",
+      "qui est tess", "qui est perry", "qui est emil", "qui est martha",
+      "qui est oliver", "qui est jonathan", "qui est mirline", "qui est data",
+      "qui est wags", "qui est lex", "qui est malo", "qui est alice",
+      "qui est merline", "qui est marcel", "qui est jor-el"],
+     outil_ce_qua_fait_un_agent),
+])

@@ -1,0 +1,79 @@
+{
+ "salutations": {
+  "mots": [
+   "salut",
+   "bonjour",
+   "coucou",
+   "hello",
+   "hi",
+   "bonsoir",
+   "yo",
+   "hey",
+   "ca va",
+   "comment vas tu",
+   "bien le bonjour"
+  ],
+  "answer": "Salut ! Je suis Arthur, le compagnon de la Tour de Controle. Je vis sur cette machine et je reponds en une milliseconde avec mes propres regles. Quand je ne sais pas, je le dis — je n'invente jamais. Demande-moi ce qu'est la Tour, qui sont les agents, ou ce qui tourne en ce moment sur le serveur."
+ },
+ "identite": {
+  "mots": [
+   "qui es tu",
+   "qui est tu",
+   "t es qui",
+   "tu es qui",
+   "presente toi",
+   "presentation",
+   "c est quoi arthur",
+   "arthur",
+   "ton nom",
+   "comment tu t appelles"
+  ],
+  "answer": "Je suis Arthur, l'assistant qui dit « je ne sais pas ». Je suis construit autour d'une seule regle : je prefere ne rien dire que dire quelque chose de faux. Je cherche d'abord dans mes regles ecrites — c'est instantane et ca ne coute rien. Si je n'y trouve pas de reponse vraie, je monte demander a un grand modele. Et si personne ne sait, je m'arrete et je le dis : « je ne sais pas » n'est pas un echec chez moi, c'est une arrivee legitime. Une question de sante, je refuse net. La couleur du chapeau d'un voisin, je reponds que je ne peux pas savoir. Le serveur est coupe, je dis « je n'ai pas pu regarder » — je ne comble jamais un silence par une supposition."
+ },
+ "tour_presentation": {
+  "mots": [
+   "c est quoi la tour",
+   "matourdecontrole",
+   "projet",
+   "votre concept",
+   "mission de la tour"
+  ],
+  "answer": "La Tour de Contrôle (matourdecontrole.fr) est notre plateforme souveraine de pilotage et d'orchestration d'agents IA. Elle garantit qu'aucun agent n'agit sans preuve, sans test préalable et sans circuit validé. Tout y est mesuré, consigné et observable en temps réel."
+ },
+ "agents": {
+  "mots": [
+   "agents",
+   "equipe",
+   "victor",
+   "chloe",
+   "clark",
+   "mirline",
+   "qui travaille",
+   "membres",
+   "roles"
+  ],
+  "answer": "La Tour est animée par une brigade d'agents spécialisés : Braignak (veille technologique et prédation), Victor (sécurité et bancs de tests), Chloé (orchestration et rédaction), Clark (analyse méticuleuse) et Alice (dialogue empathique et soin)."
+ },
+ "carte_vivante": {
+  "mots": [
+   "carte vivante",
+   "carte",
+   "noeuds",
+   "zones",
+   "graphe",
+   "cartographie",
+   "doctrine carte"
+  ],
+  "answer": "La Carte Vivante est le système nerveux de la Tour : une cartographie dynamique de plus de 470 composants (outils, conteneurs, circuits, agents) mise à jour en continu. Règle absolue : on ne devine jamais un champ, on le lit !"
+ },
+ "accueil_tour": {
+  "mots": [
+   "accueil",
+   "dashboard",
+   "tableau de bord",
+   "actualite des agents",
+   "tour dashboard"
+  ],
+  "answer": "🗼 L'ACCUEIL DE LA TOUR (tour.matourdecontrole.fr/tour/dashboard) :\n• C'est le tableau de bord principal hors Odoo, affichant l'actualité des agents et le menu d'actions.\n• On arrive directement dessus après connexion.\n• Note technique : Si appelé sans être connecté, il répond 303 (redirection vers login), ce qui est normal et ne signifie PAS une panne."
+ }
+}

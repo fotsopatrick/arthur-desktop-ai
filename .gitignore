@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+*.log
+voix-cache/
+mesure-voix.json
+*.avant-*
+
+# Les secrets ne partent JAMAIS dans un depot public.
+.cle-nebius
+.env
+*.key
+*.pem
+NEBIUS_API_KEY
+voix-cache/
+mesure-voix.json
+
+# Le coffre a clefs de Nebius ne part JAMAIS (ajoute le 16/09/2026).
+.secrets/
+cle-nebius.txt
+
+# Ce qui ne part JAMAIS dans le depot public (16/09/2026).
+registre_connaissances.json
+reglages-maison.json
+.venv/
+.prompt_cache/
+.agent_state.json
+
+# (24/09) les noms des livrables privés ne partent pas
+.livrables_vus.json
+
+# (24/09) les fiches de santé retirées restent sur la machine, jamais dans le dépôt public
+fiches-medicales-retirees.json

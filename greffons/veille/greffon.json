@@ -1,0 +1,13 @@
+{
+  "nom": "veille",
+  "titre": "La veille d'Uatu : crises, géants exposés, actionnaires, médias",
+  "auteur": "la tour de controle",
+  "allume": true,
+  "mots": [
+    "expose", "exposee", "exposes", "exposees", "exposition",
+    "detient", "detiennent", "actionnaire", "actionnaires", "qui possede",
+    "ou lire", "quels medias", "crises systemiques", "matrice beelzebuth"
+  ],
+  "reglages": {},
+  "aide": "Morceaux de la page Observatoire Uatu (cockpit, plateforme-gouvernance/veille) : matrice Beelzebuth & Sage, top actionnaires, médias. Fiches écrites à la main, pas des mesures."
+}
