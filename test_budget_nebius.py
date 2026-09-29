@@ -17,10 +17,14 @@ sys.path.insert(0, ICI)
 bac = tempfile.mkdtemp(prefix="budget-nebius-")
 os.environ["BUDGET_NEBIUS_DOSSIER"] = bac
 rouges = 0
+verts = 0
+
+
 def dire(ok, quoi):
-    global rouges
+    global rouges, verts
     print(("  VERT   " if ok else "  ROUGE  ") + quoi)
     rouges += 0 if ok else 1
+    verts += 1 if ok else 0
 
 try:
     import budget_nebius as B
@@ -67,6 +71,21 @@ dire(not parti and d.get("reponse") is None and "plafond" in (d.get("panne") or 
      "demander : refuse AVANT d'envoyer, et le dit")
 dire(not parti and c.get("reponse") is None and "plafond" in (c.get("panne") or "").lower(),
      "chat (les agents du jeu) : refuse AVANT d'envoyer")
+
+# L'INTERRUPTEUR (29/09/2026) : 0 EUR prevu -> aucun appel payant, meme avec
+# une clef, meme sous tous les plafonds.
+dire(not B.paiement_autorise({})[0], "par defaut, le paiement est COUPE")
+dire(not B.paiement_autorise({"paiement_autorise": 1})[0],
+     "autorise sans prix ni plafond en euros : toujours coupe")
+dire(B.paiement_autorise({"paiement_autorise": 1, "euros_par_million": 1.0,
+                          "euros_max": 5})[0],
+     "autorise + prix + plafond en euros : ouvert")
+parti2 = []
+U.urlopen = lambda *a, **k: parti2.append(1) or (_ for _ in ()).throw(RuntimeError("parti"))
+d2 = N.demander("bonjour", cle="cle-de-test")
+U.urlopen = vrai
+dire(not parti2 and d2.get("reponse") is None and "coupe" in (d2.get("panne") or ""),
+     "le vrai Nebius, interrupteur ferme : rien ne part")
 # un faux Nebius d'epreuve (adresse locale) ne doit rien ecrire dans le carnet
 import subprocess
 avant = sorted(os.listdir(bac))
@@ -76,5 +95,5 @@ for t in ("test_nemotron_retour.py", "test_etage_nemotron.py"):
 dire(json.load(open(os.path.join(bac, aujourd + ".json"))).get("jetons") == 0,
      "les bancs a faux Nebius n'ecrivent aucune fausse depense")
 
-print(f"\nBILAN PLAFOND NEBIUS : {9 - rouges} verts, {rouges} rouges")
+print(f"\nBILAN PLAFOND NEBIUS : {verts} verts, {rouges} rouges")
 sys.exit(1 if rouges else 0)

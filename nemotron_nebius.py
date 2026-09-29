@@ -130,7 +130,10 @@ def demander(question, cle=None, essai=False, patience=PATIENCE):
     # serait depasse. Epreuve : test_budget_nebius.py
     import budget_nebius
     estimation = (len(CONSIGNE) + len(question)) // 3 + JETONS
-    permis, pourquoi, _reste = budget_nebius.autoriser(estimation)
+    permis, pourquoi = (budget_nebius.paiement_autorise() if _vrai_nebius()
+                        else (True, ""))      # un faux Nebius d'epreuve ne coute rien
+    if permis:
+        permis, pourquoi, _reste = budget_nebius.autoriser(estimation)
     if not permis:
         base["panne"] = pourquoi
         base["plafond"] = True
@@ -209,7 +212,10 @@ def chat(messages, max_tokens=220, temperature=0.5, patience=PATIENCE):
         return {"reponse": None, "panne": "cle Nebius absente"}
     import budget_nebius   # le plafond (27/09/2026) : les agents du jeu comptent aussi
     estimation = sum(len(str(m.get("content", ""))) for m in messages) // 3 + max_tokens
-    permis, pourquoi, _reste = budget_nebius.autoriser(estimation)
+    permis, pourquoi = (budget_nebius.paiement_autorise() if _vrai_nebius()
+                        else (True, ""))      # l'interrupteur (29/09/2026)
+    if permis:
+        permis, pourquoi, _reste = budget_nebius.autoriser(estimation)
     if not permis:
         return {"reponse": None, "panne": pourquoi}
     charge = json.dumps({"model": MODELE, "messages": messages,
