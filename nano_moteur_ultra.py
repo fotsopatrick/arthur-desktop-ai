@@ -89,6 +89,7 @@ REGISTRE_PATH = _trouver_le_savoir() or os.path.join(ICI, _NOMS_DU_SAVOIR[0])
 # un bac a sable et ne jamais toucher au vrai savoir).
 _CHERCHE_DIR = os.environ.get("HAICHI_SAVOIR_DIR") or ICI
 LACUNES_PATH = os.path.join(_CHERCHE_DIR, "lacunes.json")
+LACUNES_MAX = 500   # (29/09) au-dela, les plus anciennes s'effacent
 
 # Les mots qui ne designent aucun sujet : ils ne doivent jamais faire pencher
 # la balance ("la", "de", "comment"...).
@@ -592,21 +593,20 @@ class NanoMoteurUltraEngine:
                 "horodatage": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "contexte_brut": raison,
             }
-            existantes = []
-            if os.path.exists(LACUNES_PATH):
-                try:
-                    existantes = json.load(open(LACUNES_PATH, encoding="utf-8"))
-                    if not isinstance(existantes, list):
-                        existantes = []
-                except Exception:
-                    existantes = []
-            # on ne journalise pas deux fois la meme question, pile pedant 5 min
+            # (29/09) Un fichier de lacunes abime n'est plus remplace par une
+            # seule ligne (l'historique etait perdu) : on n'y touche pas.
+            from ecriture_sure import lire_json, ecrire_json
+            existantes = lire_json(LACUNES_PATH, [])
+            if not isinstance(existantes, list):
+                return
+            # on ne journalise jamais deux fois la meme question
             for e in existantes:
-                if e.get("question") == prompt:
+                if isinstance(e, dict) and e.get("question") == prompt:
                     return
             existantes.append(ligne)
-            with open(LACUNES_PATH, "w", encoding="utf-8") as f:
-                json.dump(existantes, f, ensure_ascii=False, indent=1)
+            # la file garde les LACUNES_MAX plus recentes : elle ne grossit
+            # plus sans fin
+            ecrire_json(LACUNES_PATH, existantes[-LACUNES_MAX:])
         except Exception:
             # une panne du capteur ne doit jamais faire tomber la reponse
             pass

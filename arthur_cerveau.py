@@ -43,15 +43,19 @@ def choisir(nom):
     nom = (nom or "").strip().lower()
     if nom not in CHOIX:
         return False, "Cerveau inconnu : « %s ». Choix possibles : %s." % (nom, ", ".join(CHOIX))
-    d = lire()
+    # (29/09) Un reglage illisible n'est pas un reglage vide : avant, lire()
+    # rendait {} et on reecrivait un fichier ne contenant QUE cerveau_gros —
+    # les adresses des machines etaient effacees. On refuse, et on le dit.
+    from ecriture_sure import lire_json, ecrire_json, FichierAbime
+    try:
+        d = lire_json(fichier(), {})
+    except FichierAbime as e:
+        return False, "Je ne change rien : %s. Répare-le d'abord." % e
+    if not isinstance(d, dict):
+        return False, "Je ne change rien : %s n'est pas un objet JSON." % fichier()
     avant = d.get("cerveau_gros") or DEFAUT
     d["cerveau_gros"] = nom
-    # écriture atomique : un fichier à moitié écrit casserait tous les réglages d'Arthur
-    dossier = os.path.dirname(os.path.abspath(fichier()))
-    fd, tmp = tempfile.mkstemp(dir=dossier, suffix=".tmp")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, fichier())
+    ecrire_json(fichier(), d, indent=2)   # atomique
     return True, "Gros cerveau d'Arthur : %s → %s (%s). Actif dès la prochaine question." % (avant, nom, CHOIX[nom])
 
 

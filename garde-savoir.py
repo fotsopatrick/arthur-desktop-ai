@@ -51,21 +51,9 @@ def _chemin(nom):
 
 
 def _ecrire_json(chemin, donnees):
-    """Ecriture atomique : un crash en plein ecrit ne laisse jamais un
-    fichier a moitie ecrit (fichier temporaire, puis os.replace)."""
-    import tempfile
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(chemin) or ".",
-                               suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(donnees, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, chemin)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    """Ecriture atomique (voir ecriture_sure.py)."""
+    from ecriture_sure import ecrire_json
+    ecrire_json(chemin, donnees)
 
 
 def _charger_registre():

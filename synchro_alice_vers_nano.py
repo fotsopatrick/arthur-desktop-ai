@@ -102,10 +102,8 @@ def fusionner():
 
     # Sauvegarde du registre mis à jour — atomique : fichier temporaire, puis
     # remplacement, pour qu'un crash ne laisse pas un registre a moitie ecrit.
-    tmp = REGISTRE_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(registre, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, REGISTRE_PATH)
+    from ecriture_sure import ecrire_json
+    ecrire_json(REGISTRE_PATH, registre, indent=2)
 
     print(f"🎉 FUSION RÉUSSIE ! {len(registre)} règles et circuits d'Alice sont désormais disponibles dans le Nano-Reasoner à < 0.1ms !")
 
