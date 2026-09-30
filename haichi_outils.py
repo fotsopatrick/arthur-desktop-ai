@@ -289,13 +289,23 @@ def _expression_presente(e, question):
 
 
 def chercher_un_outil(question_normalisee):
-    """Rend la fonction de l outil qui correspond, ou None."""
+    """Rend la fonction de l outil qui correspond, ou None.
+
+    (30/09) Ne prend plus le PREMIER outil range dont une expression
+    correspond : « les agents actifs » se faisait masquer par « agents
+    actifs », range avant lui mais plus court. On garde l'expression la
+    PLUS LONGUE qui correspond, quel que soit son rang dans la table.
+    """
     q = (question_normalisee or "").strip()
+    meilleure_fonction, meilleure_longueur = None, -1
     for expressions, fonction in OUTILS:
         for e in expressions:
             if _expression_presente(e, q):
-                return fonction
-    return None
+                longueur = len(e.rstrip("$"))
+                if longueur > meilleure_longueur:
+                    meilleure_longueur = longueur
+                    meilleure_fonction = fonction
+    return meilleure_fonction
 
 
 if __name__ == "__main__":

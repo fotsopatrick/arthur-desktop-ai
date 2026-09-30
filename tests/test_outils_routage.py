@@ -114,15 +114,11 @@ def test_expression_presente_mots_entiers_et_fin():
     assert not ho._expression_presente("git status", "git statuses")
 
 
-@pytest.mark.xfail(strict=True, reason="bug: 'les agents actifs' (outil_agents_moteur_allume) "
-                   "est masque par 'agents actifs' d'outil_agents_salle, range avant")
 def test_les_agents_actifs_va_au_moteur():
     """L'expression « les agents actifs » est declaree pour l'outil moteur."""
     assert _nom("les agents actifs").__name__ == "outil_agents_moteur_allume"
 
 
-@pytest.mark.xfail(strict=True, reason="bug: 'combien d agents sans cervelle' "
-                   "(outil_que_font_les_agents) est masque par 'combien d agents' d'outil_agents_salle")
 def test_combien_sans_cervelle_va_aux_familles():
     """L'expression « combien d agents sans cervelle » est declaree pour les familles."""
     assert _nom("combien d agents sans cervelle").__name__ == "outil_que_font_les_agents"
