@@ -81,17 +81,22 @@ def _mots_des_mots(liste):
     return out
 
 
+def _ajouter_en_quarantaine(entrees):
+    """Ajoute des entrees a quarantaine.json. Une quarantaine illisible (ou
+    qui n'est pas une liste) n'est JAMAIS remplacee : FichierAbime, on
+    s'arrete (voir ecriture_sure.py)."""
+    from ecriture_sure import lire_json, FichierAbime
+    quin = _chemin("quarantaine.json")
+    quar = lire_json(quin, [])
+    if not isinstance(quar, list):
+        raise FichierAbime("%s n'est pas une liste" % quin)
+    _ecrire_json(quin, quar + list(entrees))
+
+
 def _refuse(registre_attente, fiche, raison, chemin_attente):
     """Ecrit la fiche en QUARANTAINE, la retire de l'attente, et crie."""
-    quin = _chemin("quarantaine.json")
-    quar = []
-    if os.path.exists(quin):
-        try:
-            quar = json.load(open(quin, encoding="utf-8"))
-        except Exception:
-            quar = []
-    quar.append({**fiche, "motif_refus": raison, "date_refus": time.strftime("%Y-%m-%d")})
-    _ecrire_json(quin, quar)
+    _ajouter_en_quarantaine([{**fiche, "motif_refus": raison,
+                              "date_refus": time.strftime("%Y-%m-%d")}])
 
     if registre_attente:
         attente, _ = registre_attente
@@ -211,18 +216,10 @@ def juger(fiche, registre, registre_attente, chemin_attente):
     if a_surclasser:
         # (29/09) Le connu surclasse n'est plus detruit sans trace : il part
         # dans la quarantaine, d'ou un humain peut le rendre au registre.
-        quin = _chemin("quarantaine.json")
-        try:
-            quar = json.load(open(quin, encoding="utf-8")) if os.path.exists(quin) else []
-            if not isinstance(quar, list):
-                quar = []
-        except Exception:
-            quar = []
-        for k in a_surclasser:
-            quar.append({**registre[k], "_cle": k,
-                         "motif_refus": "surclasse par une fiche plus fiable",
-                         "date_refus": time.strftime("%Y-%m-%d")})
-        _ecrire_json(quin, quar)
+        _ajouter_en_quarantaine(
+            {**registre[k], "_cle": k,
+             "motif_refus": "surclasse par une fiche plus fiable",
+             "date_refus": time.strftime("%Y-%m-%d")} for k in a_surclasser)
         for k in a_surclasser:
             del registre[k]
 

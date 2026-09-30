@@ -1,5 +1,5 @@
 {
-  "_lisez_moi": "Copie la cle \"cerveaux\" (et \"cerveau_repli\" si tu veux) dans reglages-maison.json, puis : python3 arthur_cerveau.py <nom>. Les cles d'API ne s'ecrivent JAMAIS ici : seulement le NOM de la variable d'environnement qui les contient (cle_env). Tout cerveau payant reste bloque tant que ~/.config/budget-nebius.json n'autorise pas une depense (voir budget_nebius.py). Verifie les noms de modeles chez chaque fournisseur : ils changent.",
+  "_lisez_moi": "Mets \"euros_par_million\" (prix de sortie lu chez le fournisseur) dans chaque fiche payante : le plafond en euros prend le prix le plus cher. Copie la cle \"cerveaux\" (et \"cerveau_repli\" si tu veux) dans reglages-maison.json, puis : python3 arthur_cerveau.py <nom>. Les cles d'API ne s'ecrivent JAMAIS ici : seulement le NOM de la variable d'environnement qui les contient (cle_env). Tout cerveau payant reste bloque tant que ~/.config/budget-nebius.json n'autorise pas une depense (voir budget_nebius.py). Verifie les noms de modeles chez chaque fournisseur : ils changent.",
 
   "cerveau_repli": ["qwen"],
 
@@ -15,9 +15,10 @@
       "type": "anthropic",
       "modele": "claude-opus-5-5",
       "effort": "low",
+      "euros_par_million": 20,
       "cle_env": "ANTHROPIC_API_KEY",
       "payant": true,
-      "_note": "Necessite : pip install anthropic. Moins cher : claude-sonnet-5-5 ou claude-haiku-4-5."
+      "_note": "Necessite : pip install anthropic. euros_par_million = prix de sortie d'Opus 5.5 (20 $/M), arrondi prudemment. Moins cher : claude-sonnet-5-5 ou claude-haiku-4-5 (adapte le prix)."
     },
     "mistral": {
       "type": "openai",

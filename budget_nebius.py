@@ -32,6 +32,7 @@ import datetime
 import fcntl
 import json
 import os
+import re
 
 DEFAUT = {"jetons_par_jour": 100000, "jetons_max_par_appel": 2000,
           "jetons_total_max": 3000000, "euros_par_million": 0, "euros_max": 0,
@@ -68,8 +69,25 @@ def _lire(jour):
         return int(d.get("jetons", 0)), None
     except FileNotFoundError:
         return 0, None
-    except (OSError, ValueError, TypeError) as e:
+    except (OSError, ValueError, TypeError, AttributeError) as e:
         return 0, f"le carnet des depenses Nebius est abime ({type(e).__name__})"
+
+
+_JOUR = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
+
+
+def _somme_des_jours():
+    """(jetons notes dans TOUS les carnets du jour, erreur). Sert de point de
+    depart au compteur total : les depenses d'avant total.json comptent."""
+    somme = 0
+    for nom in sorted(os.listdir(_dossier())):
+        if not _JOUR.match(nom):
+            continue
+        n, erreur = _lire(nom[:-5])
+        if erreur:
+            return 0, erreur
+        somme += n
+    return somme, None
 
 
 def _lire_total():
@@ -78,7 +96,7 @@ def _lire_total():
         with open(os.path.join(_dossier(), "total.json"), encoding="utf-8") as f:
             return int(json.load(f).get("jetons", 0)), None
     except FileNotFoundError:
-        return 0, None
+        return _somme_des_jours()
     except (OSError, ValueError, TypeError, AttributeError) as e:
         return 0, f"le compteur total Nebius est abime ({type(e).__name__})"
 
@@ -172,7 +190,13 @@ def noter(usage, modele, qui, jour=None, estimation=0):
         f.seek(0)
         brut = f.read()
         try:
-            t = json.loads(brut) if brut.strip() else {}
+            if brut.strip():
+                t = json.loads(brut)
+            else:
+                # premier total : on part de ce que les carnets du jour ont
+                # deja note (celui d'aujourd'hui compte deja cet appel)
+                avant, erreur = _somme_des_jours()
+                t = {"jetons": (10 ** 12 if erreur else max(0, avant - jetons))}
         except ValueError:
             t = {"jetons": 10 ** 12, "abime_avant": brut[:80]}   # abime : on bloque tout
         t["jetons"] = int(t.get("jetons", 0)) + jetons

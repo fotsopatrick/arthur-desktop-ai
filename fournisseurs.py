@@ -32,6 +32,10 @@ est commun a tous les cerveaux payants. Une fiche sans "payant" est traitee
 comme payante des qu'elle vise une adresse hors de cette machine : dans le
 doute, on protege le porte-monnaie.
 
+Une fiche payante peut porter son prix : "euros_par_million" (le prix de
+SORTIE, le plus cher, arrondi au-dessus). Le plafond en euros se calcule alors
+au prix le plus cher entre celui-ci et celui de budget-nebius.json.
+
 Les cles ne s'ecrivent JAMAIS dans la fiche : seulement le NOM de la variable
 d'environnement qui la contient ("cle_env").
 """
@@ -140,7 +144,14 @@ def _garde_argent(nom, f, estimation):
     ok, pourquoi = budget_nebius.paiement_autorise()
     if not ok:
         return False, pourquoi.replace("Nebius", nom)
-    ok, pourquoi, _ = budget_nebius.autoriser(estimation)
+    # (30/09) Le plafond en euros se calcule au prix le PLUS CHER entre le
+    # prix general et celui de la fiche : passer de Nemotron a Claude ne doit
+    # pas faire sous-estimer la depense. Prudent : on surestime plutot.
+    r = budget_nebius.reglages()
+    prix = float(f.get("euros_par_million") or 0)
+    if prix > float(r.get("euros_par_million") or 0):
+        r["euros_par_million"] = prix
+    ok, pourquoi, _ = budget_nebius.autoriser(estimation, reglages=r)
     return ok, pourquoi
 
 
@@ -166,7 +177,14 @@ def demander(nom, question, extraits=None, consigne=None, jetons_max=900, patien
         return rendu
 
     systeme, messages = _messages(question, extraits, consigne)
-    estimation = (len(systeme) + len(str(question))) // 3 + jetons_max
+    # UN SEUL plafond de sortie, celui qu'on envoie VRAIMENT : l'estimation
+    # soumise au budget et le max_tokens de l'appel ne divergent plus, et un
+    # cerveau payant respecte jetons_max_par_appel comme Nemotron.
+    plafond = int(f.get("jetons_max") or (4000 if f["type"] == "anthropic" else jetons_max))
+    if est_payant(f):
+        import budget_nebius
+        plafond = budget_nebius.max_par_appel(plafond)
+    estimation = (len(systeme) + len(str(question))) // 3 + plafond
     ok, pourquoi = _garde_argent(nom, f, estimation)
     if not ok:
         rendu["panne"] = pourquoi
@@ -179,13 +197,21 @@ def demander(nom, question, extraits=None, consigne=None, jetons_max=900, patien
 
     try:
         if f["type"] == "anthropic":
-            texte, jetons = _claude(f, systeme, messages, cle, jetons_max, patience)
+            texte, jetons = _claude(f, systeme, messages, cle, plafond, patience)
         elif f["type"] == "ollama":
             texte, jetons = _ollama(f, systeme, messages, patience)
         else:
-            texte, jetons = _openai(f, systeme, messages, cle, jetons_max, patience)
+            texte, jetons = _openai(f, systeme, messages, cle, plafond, patience)
     except _Panne as e:
+        # une reponse RECUE puis rejetee (refus, place manquee, illisible)
+        # a ete facturee : elle entre au carnet comme les autres.
+        if e.jetons is not None:
+            _noter(nom, f, e.jetons, estimation)
         rendu["panne"] = str(e)
+        return rendu
+    except Exception as e:
+        # un SDK trop vieux, une erreur imprevue : jamais de plantage du moteur
+        rendu["panne"] = "%s en panne : %s" % (nom, str(e)[:120] or type(e).__name__)
         return rendu
     _noter(nom, f, jetons, estimation)
     if not texte:
@@ -195,7 +221,12 @@ def demander(nom, question, extraits=None, consigne=None, jetons_max=900, patien
 
 
 class _Panne(Exception):
-    pass
+    """jetons : None si rien n'a ete facture ; sinon ce que l'appel a coute
+    (0 = inconnu, le carnet prend alors l'estimation)."""
+
+    def __init__(self, message, jetons=None):
+        super().__init__(message)
+        self.jetons = jetons
 
 
 def _poster(url, charge, entetes, patience):
@@ -220,18 +251,22 @@ def _openai(f, systeme, messages, cle, jetons_max, patience):
     entetes = {"Authorization": "Bearer " + cle} if cle else {}
     d = _poster(f["url"], {"model": f["modele"],
                            "messages": [{"role": "system", "content": systeme}] + messages,
-                           "max_tokens": int(f.get("jetons_max") or jetons_max),
+                           "max_tokens": int(jetons_max),
                            "temperature": 0}, entetes, patience)
+    try:
+        jetons = int((d.get("usage") or {}).get("total_tokens") or 0)
+    except (AttributeError, TypeError, ValueError):
+        jetons = 0
     try:
         choix = d["choices"][0]
         texte = ((choix.get("message") or {}).get("content") or "").strip()
     except (KeyError, IndexError, TypeError, AttributeError):
-        raise _Panne("reponse illisible")
+        raise _Panne("reponse illisible", jetons)
     if not texte and choix.get("finish_reason") == "length":
         # le defaut des modeles qui reflechissent (RAPPORT-BUG-NEBIUS.md) :
         # toute la place est partie dans la reflexion. On ne rend pas le brouillon.
-        raise _Panne("le modele a manque de place pour repondre (reflexion trop longue)")
-    return texte, int((d.get("usage") or {}).get("total_tokens") or 0)
+        raise _Panne("le modele a manque de place pour repondre (reflexion trop longue)", jetons)
+    return texte, jetons
 
 
 def _ollama(f, systeme, messages, patience):
@@ -253,7 +288,7 @@ def _claude(f, systeme, messages, cle, jetons_max, patience):
         raise _Panne("le paquet « anthropic » n'est pas installe (pip install anthropic)")
     modele = f.get("modele") or "claude-opus-5-5"
     client = anthropic.Anthropic(api_key=cle or None, timeout=patience, max_retries=1)
-    params = {"model": modele, "max_tokens": int(f.get("jetons_max") or 4000),
+    params = {"model": modele, "max_tokens": int(jetons_max),
               "system": systeme, "messages": messages}
     if modele in _CLAUDE_AVEC_EFFORT:
         params["output_config"] = {"effort": f.get("effort") or "low"}
@@ -272,11 +307,12 @@ def _claude(f, systeme, messages, cle, jetons_max, patience):
         raise _Panne("Claude : HTTP %d" % e.status_code)
     except anthropic.APIConnectionError:
         raise _Panne("Claude injoignable")
-    if reponse.stop_reason == "refusal":
-        raise _Panne("Claude a decline la demande")
-    texte = "".join(b.text for b in reponse.content if b.type == "text").strip()
     u = reponse.usage
-    return texte, int((u.input_tokens or 0) + (u.output_tokens or 0))
+    jetons = int((u.input_tokens or 0) + (u.output_tokens or 0))
+    if reponse.stop_reason == "refusal":
+        raise _Panne("Claude a decline la demande", jetons)
+    texte = "".join(b.text for b in reponse.content if b.type == "text").strip()
+    return texte, jetons
 
 
 def main(argv):

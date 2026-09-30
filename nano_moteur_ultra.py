@@ -550,6 +550,8 @@ class NanoMoteurUltraEngine:
         retrouves = [m for m in importants if m in dedans]
         if len(retrouves) < MOTS_RETROUVES_MINIMUM:
             return None, 0
+        # comme pour les documents locaux : sans gros cerveau, on citera
+        self._citation = (str(morceaux[0].get("source", "?")), morceaux[0]["texte"])
         extraits = "\n\n".join("[%s] %s" % (m.get("source", "?"), m["texte"][:700]) for m in morceaux)
         return extraits, len(retrouves)
 
@@ -601,21 +603,41 @@ class NanoMoteurUltraEngine:
         f = fournisseurs.fiche(choix)
         return choix if f and f.get("type") != "interne" else None
 
+    def _cerveaux_externes(self, choix=None, apres_qwen=False):
+        """Les cerveaux declares a essayer, dans l'ordre de
+        fournisseurs.ordre (le choisi, puis « cerveau_repli »), coupe en deux
+        par Qwen : ceux d'AVANT Qwen (par defaut), ou ceux d'APRES
+        (apres_qwen=True), essayes seulement si Qwen n'a rien rendu."""
+        choix = choix or getattr(self, "_choix", None)
+        if fournisseurs is None or not choix or choix == "aucun":
+            return []
+        liste = fournisseurs.ordre(choix)
+        coupe = liste.index("qwen") if "qwen" in liste else len(liste)
+        liste = liste[coupe + 1:] if apres_qwen else liste[:coupe]
+        return [n for n in liste if self._cerveau_externe(n)]
+
     def demander_au_cerveau(self, question, extraits=None):
         """Lire des extraits (ou repondre) avec le cerveau CHOISI. Rend
         (reponse, panne). Un cerveau declare (deepseek, claude...) d'abord ;
         s'il ne repond pas, Qwen sur Alice, comme avant."""
         if getattr(self, "_sans_reseau", False):
             return None, "mode sans cerveau : aucun appel reseau"
-        externe = self._cerveau_externe()
-        if externe:
+        pannes = []
+        for externe in self._cerveaux_externes():
             d = fournisseurs.demander(externe, question, extraits, consigne=CONSIGNE_ALICE)
             if d.get("reponse"):
                 return d["reponse"], None
-            reponse, panne = self.demander_a_alice(question, extraits)
-            return reponse, ("%s : %s ; %s" % (externe, d.get("panne"), panne)
-                             if not reponse else None)
-        return self.demander_a_alice(question, extraits)
+            pannes.append("%s : %s" % (externe, d.get("panne")))
+        reponse, panne = self.demander_a_alice(question, extraits)
+        if reponse:
+            return reponse, None
+        pannes.append(str(panne))
+        for externe in self._cerveaux_externes(apres_qwen=True):
+            d = fournisseurs.demander(externe, question, extraits, consigne=CONSIGNE_ALICE)
+            if d.get("reponse"):
+                return d["reponse"], None
+            pannes.append("%s : %s" % (externe, d.get("panne")))
+        return None, " ; ".join(pannes) if len(pannes) > 1 else panne
 
     def demander_a_morgan(self, prompt):
         """Passe la main a morgan, le nemotron LOCAL (ollama) sur cette
@@ -841,7 +863,11 @@ class NanoMoteurUltraEngine:
                 # n'est jamais notee « regle manquante » (le bottom-up serait trompe),
                 # et on n'attend pas 30 s une recherche qu'Alice ne pourra pas lire.
                 panne = ""
-                if self.alice_est_injoignable():
+                # Alice muette ne bloque la lecture que si c'est ELLE qui doit
+                # lire une recherche maison lente. Documents locaux (instantanes,
+                # citables), mode local ou cerveau declare : on lit quand meme.
+                if (self.alice_est_injoignable() and RAG_MAISON and not self._sans_reseau
+                        and not self._cerveaux_externes()):
                     panne = "Alice est injoignable (constate il y a moins de 30 secondes)"
                 else:
                     extraits, combien = self.chercher_dans_la_maison(prompt_norm)
@@ -950,8 +976,7 @@ class NanoMoteurUltraEngine:
 
             # UN CERVEAU DECLARE (29/09/2026) : deepseek, claude, mistral...
             # (fournisseurs.py). Muet ou en panne -> on redescend a Qwen.
-            externe = self._cerveau_externe(choix)
-            if externe:
+            for externe in self._cerveaux_externes(choix):
                 d = fournisseurs.demander(externe, prompt, consigne=CONSIGNE_ALICE)
                 if d.get("reponse"):
                     if "je ne sais pas" in d["reponse"].lower():
@@ -971,6 +996,16 @@ class NanoMoteurUltraEngine:
                 return self._sortie(True, raison + " — passé à Qwen sur Alice.",
                                     reponse, "alice", 0.0, t0, source="alice")
             raison += f" Alice n'a pas répondu ({panne})." if panne else ""
+            # les cerveaux de repli declares APRES qwen (« cerveau_repli »)
+            for externe in self._cerveaux_externes(choix, apres_qwen=True):
+                d = fournisseurs.demander(externe, prompt, consigne=CONSIGNE_ALICE)
+                if d.get("reponse"):
+                    if "je ne sais pas" in d["reponse"].lower():
+                        self._consigner_lacune(prompt_norm, raison)
+                    return self._sortie(True, raison + " — passé à %s (%s)." % (
+                                            externe, d.get("modele") or "?"),
+                                        d["reponse"], externe, 0.0, t0, source=externe)
+                raison += " %s : %s." % (externe, d.get("panne"))
             self._consigner_lacune(prompt_norm, raison)
             return self._sortie(False, raison, REPLI, None, 0.0, t0, source="aveu")
 
@@ -1009,7 +1044,7 @@ class NanoMoteurUltraEngine:
             # pu confirmer — souvent parce qu on est HORS LIGNE. Avant, on
             # servait quand meme la fiche : une reponse a cote. Le silence
             # vaut mieux qu une reponse a cote : on avoue.
-            return self._sortie(
+            sortie = self._sortie(
                 False,
                 f"Fiche {meilleure} ecartee : elle ne couvre pas "
                 f"{', '.join(importants[:3])}.",
@@ -1017,6 +1052,12 @@ class NanoMoteurUltraEngine:
                 "correspond vraiment à ta question — tu peux en ajouter une dans "
                 "le registre.",
                 None, 0.0, t0, source="aveu")
+            if self._sans_reseau:
+                # mode local : les documents d'Alice n'ont pas ete lus. Le
+                # graphe peut aller les voir — mais SEULEMENT les documents :
+                # sans eux, cette question ne monte pas au gros cerveau.
+                sortie["peut_monter"] = "documents"
+            return sortie
 
         return self._sortie(True, item.get("think", "Correspondance déterministe."),
                             item.get("answer", ""), meilleure, scores[meilleure], t0)
