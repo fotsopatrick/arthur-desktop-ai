@@ -30,7 +30,7 @@ PAGE = r"""<!doctype html>
   color-scheme:dark;
   --page:#001A2B; --surface:#052B42; --surface-2:#0a3552; --ring:rgba(249,249,255,.10);
   --ink:#F9F9FF; --ink-2:#b9c6d3; --muted:#8193a5; --grid:#16405c; --accent:#E0FF4F;
-  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --skip:#8193a5;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --skip:#8193a5; --bug:#ec835a;
   --good-soft:rgba(12,163,12,.16); --warn-soft:rgba(250,178,25,.16); --crit-soft:rgba(208,59,59,.20);
   --code:#021f31;
 }
@@ -62,7 +62,8 @@ h1 b{color:var(--accent)}
   padding:3px 10px;font-size:12px;color:var(--ink-2);background:var(--surface)}
 button.theme{background:var(--surface);color:var(--ink);border:1px solid var(--ring);border-radius:10px;padding:6px 10px;cursor:pointer}
 .grid{display:grid;gap:12px}
-.hero{grid-template-columns:minmax(260px,1.3fr) repeat(4,minmax(150px,1fr))}
+.hero{grid-template-columns:minmax(260px,1.3fr) repeat(5,minmax(140px,1fr))}
+@media(max-width:1180px){.hero{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:980px){.hero{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.hero{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:16px}
@@ -78,6 +79,7 @@ button.theme{background:var(--surface);color:var(--ink);border:1px solid var(--r
 .leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--ink-2)}
 .st{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.bug{color:var(--bug)} .bg-bug{background:var(--bug)} .pill.bug{background:rgba(236,131,90,.18)}
 .good{color:var(--good)} .warn{color:var(--warn)} .crit{color:var(--crit)} .skip{color:var(--skip)}
 .bg-good{background:var(--good)} .bg-warn{background:var(--warn)} .bg-crit{background:var(--crit)} .bg-skip{background:var(--skip)}
 .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
@@ -195,6 +197,7 @@ const SERIE = {
   vert:  {cls:"good", ic:"✓", mot:"Passe"},
   rouge: {cls:"crit", ic:"✗", mot:"Échoue"},
   saute: {cls:"skip", ic:"~", mot:"Sautée"},
+  bug:   {cls:"bug",  ic:"⚑", mot:"Bug connu"},
 };
 const pill = (o) => el("span", {class:"pill "+o.cls}, o.ic+" "+o.mot);
 const couleurPct = (p, touche) => !touche ? "var(--crit)" : (p >= D.seuil ? "var(--good)" : "var(--warn)");
@@ -253,6 +256,9 @@ function legende(parts) {
   const ser = [{n:T.series_vertes,cls:"good",ic:"✓",mot:"passent"},{n:T.series_rouges,cls:"crit",ic:"✗",mot:"échouent"},{n:T.series_sautees,cls:"skip",ic:"~",mot:"sautées"}];
   h.append(tuileKPI("Séries de tests", T.series, "fichiers de tests lancés", el("div", {}, segments(ser), legende(ser))));
   h.append(tuileKPI("Épreuves", T.epreuves.toLocaleString("fr-FR"), `${T.epreuves_vertes.toLocaleString("fr-FR")} passent (chaque vérification compte)`));
+  h.append(tuileKPI("Bugs connus", el("span", {class: T.bugs_connus ? "bug" : ""}, (T.bugs_connus ? "⚑ " : "") + (T.bugs_connus || 0)),
+    "documentés par un test « échec attendu » — à corriger",
+    T.bugs_connus ? el("button", {class:"f", style:"margin-top:10px", onclick: () => { filtreSerie = "bug"; aller("tests"); }}, "voir la liste →") : null));
   h.append(tuileKPI("Fonctions jamais appelées", T.fonctions_jamais, `sur ${T.fonctions} fonctions`,
     el("div", {class:"meter"}, el("i", {style:`width:${T.fonctions ? 100*T.fonctions_jamais/T.fonctions : 0}%;background:var(--crit)`}))));
 })();
@@ -393,9 +399,19 @@ function modules(m) {
 let filtreSerie = "tous";
 function tests(m) {
   const n = k => D.series.filter(s => s.etat === k).length;
+  const bugs = D.series.flatMap(s => s.epreuves.filter(e => e.etat === "bug").map(e => ({serie: s.id, ...e})));
   m.append(el("div", {class:"bar"},
-    [["tous","Toutes",D.series.length],["rouge","✗ Échouent",n("rouge")],["saute","~ Sautées",n("saute")],["vert","✓ Passent",n("vert")]]
+    [["tous","Toutes",D.series.length],["rouge","✗ Échouent",n("rouge")],["saute","~ Sautées",n("saute")],["vert","✓ Passent",n("vert")],["bug","⚑ Bugs connus",bugs.length]]
       .map(([k,lib,c]) => el("button", {class:"f", "aria-pressed": filtreSerie===k, onclick: () => { filtreSerie = k; aller("tests"); }}, `${lib} (${c})`))));
+  if (filtreSerie === "bug") {
+    m.append(el("p", {class:"aide"}, "Chaque ligne est un vrai défaut d'Arthur, prouvé par un test marqué « échec attendu » : le test passera au vert le jour où le défaut sera corrigé."));
+    const box = el("div", {class:"card"});
+    for (const b of bugs) box.append(el("div", {class:"ep"}, el("span", {class:"bug", style:"min-width:1.2em"}, "⚑"),
+      el("span", {}, el("b", {}, b.detail.replace(/^(reason: )?(bug: ?)?/i, "")), el("div", {class:"sub"}, `${b.serie} · ${b.nom}`))));
+    if (!bugs.length) box.append(el("div", {class:"vide"}, "Aucun bug connu."));
+    m.append(box);
+    return;
+  }
   const ordre = {rouge:0, saute:1, vert:2};
   const liste = D.series.filter(s => filtreSerie==="tous" || s.etat===filtreSerie)
     .sort((a,b) => ordre[a.etat]-ordre[b.etat] || a.id.localeCompare(b.id));

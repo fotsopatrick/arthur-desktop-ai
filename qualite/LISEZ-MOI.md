@@ -14,8 +14,15 @@ internet. Quatre vues :
 |---|---|
 | **Carte** | chaque fichier du code d'Arthur en tuile : ✓ couvert, ! incomplet, ✗ sans test |
 | **Modules** | le tableau triable : couverture, lignes, fonctions jamais appelées, séries qui le touchent |
-| **Tests** | chaque série : ✓ passe, ✗ échoue, ~ sautée (et ce qui manque), avec ses épreuves |
+| **Tests** | chaque série : ✓ passe, ✗ échoue, ~ sautée (et ce qui manque), avec ses épreuves ; et **⚑ Bugs connus** : les défauts prouvés par un test « échec attendu » (`xfail(strict=True)`), avec leur `fichier:ligne` |
 | **Fichier** | le code, ligne par ligne : vert exécuté, rouge jamais exécuté ; ses fonctions ; ses tests |
+
+## Les bugs connus
+
+Un test qui prouve un vrai défaut est marqué `@pytest.mark.xfail(strict=True,
+reason="bug: fichier:ligne — …")`. Il reste « échec attendu » tant que le
+défaut existe ; le jour où il est corrigé, le test **passe**, et `strict` le
+fait alors échouer : on retire la marque, et le bug sort de la liste.
 
 ## Rien ne dépend de la machine
 

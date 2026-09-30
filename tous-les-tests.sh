@@ -1,97 +1,13 @@
 #!/bin/bash
 # Toutes les epreuves d'Arthur, d'un seul coup.
 #
-# Ne le 16/09/2026. Il y avait dix-sept series d'epreuves dans ce dossier et
-# AUCUNE facon de les lancer ensemble. On corrigeait un coin, on cassait
-# l'autre, et personne ne le voyait : huit epreuves etaient rouges depuis
-# des jours sans que ca se sache.
+# Ne le 16/09/2026. Depuis le 30/09/2026, ce fichier passe la main au lanceur
+# unique (qualite/lancer.py) : il lance AUSSI les series de tests/ (pytest),
+# mesure la couverture, isole chaque serie dans un HOME jetable (plus aucun
+# test ne touche au vrai ~/), et ecrit le tableau de bord
+# qualite/rapport/index.html. Il sort en ERREUR des qu'une serie est rouge.
 #
-# Une epreuve qu'on ne lance pas ne garde rien. Celui-ci se lance en entier,
-# compte, et sort en ERREUR des qu'une seule est rouge.
-#
-#   bash ~/haichi/tous-les-tests.sh
+#   bash tous-les-tests.sh        (ou ./tester, qui ouvre aussi le tableau)
 #
 cd "$(dirname "$0")" || exit 1
-
-verts=0 rouges=0 sautes=0
-liste_rouges=""
-
-for f in test_*.py; do
-    sortie=$(timeout 200 python3 "$f" 2>&1 | grep -v "dbind-WARNING\|qt.qpa")
-
-    # Certaines epreuves ont besoin d'une chose exterieure (un navigateur
-    # ouvert, une machine allumee). On le DIT, on ne fait pas semblant.
-    if echo "$sortie" | grep -qi "9222/json/version\|navigateur.*pas ouvert"; then
-        printf "  ~ %-44s a besoin d'un navigateur ouvert\n" "$f"
-        sautes=$((sautes + 1)); continue
-    fi
-
-    # Difficile de savoir comment les series ecrivent leur bilan : certaines
-    # disent « 0 rouge(s) », d'autres « 0 rouges », « 1 rouge », « 4 vert, 1
-    # rouge », « 0 ROUGE(S) » en majuscules, « 2 ratees ». Le 16/09/2026 ce
-    # lanceur ne connaissait que deux formes et a annonce ROUGE pour des
-    # series vertes. Un detecteur qui ne connait pas toutes les formes crie
-    # au feu : c'est la meme faute qu'on a reparee ailleurs. Le 21/09/2026 on
-    # a paye la quatrieme version : « 0 rouges » au pluriel et « ROUGE(S) »
-    # en majuscules passaient a cote. Le motif accepte donc tout : singulier,
-    # pluriel, parentheses, casse, « ratees ».
-    bilan=$(echo "$sortie" | grep -oiE "[0-9]+ rouge|[0-9]+ ratees?" | tail -1)
-    nombre=$(echo "$bilan" | grep -oE "^[0-9]+")
-
-    # (29/09) Les series ecrites avec unittest disent « Ran N tests » puis
-    # « OK » ou « FAILED (failures=2) ». Ce lanceur ne les lisait pas et les
-    # comptait ROUGES alors qu'elles passaient.
-    if [ -z "$nombre" ] && echo "$sortie" | grep -qE "^Ran [0-9]+ tests? in"; then
-        if echo "$sortie" | grep -qE "^OK( \(|$)"; then
-            nombre=0
-        else
-            bilan=$(echo "$sortie" | grep -E "^FAILED" | tail -1)
-            nombre=1
-        fi
-    fi
-
-    # (29/09) Une serie ROUGE parce qu'il manque une chose EXTERIEURE a ce
-    # depot (le cockpit de Patrick, la tour, GTK, ~/outils, le registre prive)
-    # n'est pas une regression : on le DIT, on la compte a part. Seule une
-    # serie deja rouge est reclassee — une serie verte reste verte.
-    if [ -z "$nombre" ] || [ "$nombre" -ne 0 ]; then
-        besoin=""
-        if echo "$sortie" | grep -qi "errno 111\] connection refused"; then
-            besoin="le cockpit local (127.0.0.1:8790)"
-        elif echo "$sortie" | grep -q "pas pu lancer la connexion"; then
-            besoin="un acces ssh a la tour"
-        elif echo "$sortie" | grep -qE "No module named 'gi'|cannot import name '_gi'"; then
-            besoin="GTK (python3-gi)"
-        elif echo "$sortie" | grep -q "outils/pilote-page.py"; then
-            besoin="~/outils/pilote-page.py"
-        elif echo "$sortie" | grep -q "registre_connaissances.json'"; then
-            besoin="le registre de travail prive"
-        fi
-        if [ -n "$besoin" ]; then
-            printf "  ~ %-44s a besoin de %s\n" "$f" "$besoin"
-            sautes=$((sautes + 1)); continue
-        fi
-    fi
-
-    if [ -z "$nombre" ]; then
-        printf "  ? %-44s pas de bilan lisible\n" "$f"
-        rouges=$((rouges + 1)); liste_rouges="$liste_rouges $f"
-    elif [ "$nombre" -eq 0 ]; then
-        combien=$(echo "$sortie" | grep -oE "[0-9]+ epreuves passees|rouge\(s\) sur [0-9]+|[0-9]+ vert\b" | tail -1 | grep -oE "[0-9]+")
-        printf "  · %-44s %s epreuves au vert\n" "$f" "${combien:-?}"
-        verts=$((verts + 1))
-    else
-        printf "  ✗ %-44s %s\n" "$f" "$bilan"
-        rouges=$((rouges + 1)); liste_rouges="$liste_rouges $f"
-    fi
-done
-
-echo
-echo "════════════════════════════════════════════════════════════════════"
-if [ "$rouges" -eq 0 ]; then
-    echo "  $verts series au vert, $sautes sautee(s) faute d'outil exterieur."
-    exit 0
-fi
-echo "  $verts au vert, $rouges ROUGE(S) :$liste_rouges"
-echo "════════════════════════════════════════════════════════════════════"
-exit 1
+exec python3 qualite/lancer.py "$@"

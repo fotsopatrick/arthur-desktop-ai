@@ -41,7 +41,7 @@ import analyse  # noqa: E402
 
 # Une serie ROUGE parce qu'il manque une chose EXTERIEURE au depot n'est pas
 # une regression : on la classe « sautee » et on nomme ce qui manque. Seule
-# une serie deja rouge est reclassee (meme regle que tous-les-tests.sh).
+# une serie deja rouge est reclassee (regle nee dans tous-les-tests.sh le 21/09).
 BESOINS = [
     (re.compile(r"errno 111\] connection refused", re.I), "le cockpit local (127.0.0.1:8790)"),
     (re.compile(r"pas pu lancer la connexion"), "un acces ssh a la tour"),
@@ -113,6 +113,9 @@ def _epreuves_junit(junit):
                 etat, detail = "rouge", (enfant.get("message") or "")[:300]
             elif enfant.tag == "skipped":
                 etat, detail = "saute", (enfant.get("message") or "")[:300]
+                if enfant.get("type") == "pytest.xfail":
+                    # un « echec attendu » : un BUG CONNU, documente par un test
+                    etat = "bug"
         sortie.append({"nom": cas.get("name"), "etat": etat, "detail": detail,
                        "duree": round(float(cas.get("time") or 0), 3)})
     return sortie
@@ -258,6 +261,7 @@ def construire(resultats, duree_totale):
             "series_sautees": sum(r["etat"] == "saute" for r in resultats),
             "epreuves": len(epreuves),
             "epreuves_vertes": sum(e["etat"] == "vert" for e in epreuves),
+            "bugs_connus": sum(e["etat"] == "bug" for e in epreuves),
         },
         "modules": modules,
         "series": resultats,
