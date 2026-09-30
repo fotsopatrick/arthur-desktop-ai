@@ -57,6 +57,19 @@ python3 haichi_avatar.py                      # the desktop companion
 python3 haichi_avatar.py "who is Victor"      # ask a question right away
 ```
 
+## Tests and coverage — one command
+
+```bash
+./tester
+```
+
+Runs every test series, measures line-by-line coverage of Arthur's code, and
+opens `qualite/rapport/index.html` — a self-contained dashboard (no internet)
+showing what is **covered**, what is **incomplete**, and what has **no test**,
+down to the exact lines never executed and the functions never called.
+Nothing to install: pytest ships in `vendor/`, and coverage is measured with the
+Python standard library (`qualite/`). See `qualite/LISEZ-MOI.md`.
+
 ## Check it yourself
 
 Don't take our word for it. Every claim below is a test you can run:

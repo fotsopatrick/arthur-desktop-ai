@@ -10,7 +10,9 @@
 # fait parler le programme cloné. C'est la seule facon de savoir ce qu'un
 # inconnu recevra vraiment.
 set -u
-DEPOT="${1:-$HOME/haichi}"
+# (30/09) par defaut, le depot OU VIT ce fichier (et non ~/haichi, qui
+# n'existe que sur la machine de Patrick)
+DEPOT="${1:-$(cd "$(dirname "$0")" && pwd)}"
 BAC=$(mktemp -d)
 trap 'rm -rf "$BAC"' EXIT
 VERTS=0; ROUGES=0

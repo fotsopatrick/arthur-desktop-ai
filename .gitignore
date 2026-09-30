@@ -39,3 +39,6 @@ quarantaine.json
 fiches-attente.json
 graphe.json
 *.mcp_tmp
+
+# (30/09) le tableau de bord des tests se regenere : python3 qualite/lancer.py
+qualite/rapport/
