@@ -118,15 +118,11 @@ def test_gestes_ordinaires_permis(commande):
     assert agir.examiner(commande)["permis"] is True
 
 
-@pytest.mark.xfail(strict=True, reason="bug: haichi_agir.py:51 le motif de la bombe commence "
-                   "par \\b devant « : » ; il ne reconnait jamais « :(){ :|:& };: »")
 def test_la_bombe_classique_est_refusee():
     """La bombe qui se recopie sans fin, ecrite comme partout, est refusee."""
     assert agir.examiner(":(){ :|:& };:")["permis"] is False
 
 
-@pytest.mark.xfail(strict=True, reason="bug: haichi_agir.py:44 le motif rm ne voit pas les "
-                   "options longues : « rm --recursive --force ~/x » passe le garde")
 def test_rm_options_longues_refuse():
     """Effacer avec les options longues est aussi effacer."""
     assert agir.examiner("rm --recursive --force /home/p/travail")["permis"] is False
