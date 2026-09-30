@@ -96,7 +96,8 @@ class Guichet(BaseHTTPRequestHandler):
         cela, on ne peut pas avancer dans la video."""
         import urllib.parse
         chemin = os.path.realpath(chemin)
-        if not chemin.startswith(os.path.realpath(DOSSIER_VIDEOS)):
+        base = os.path.realpath(DOSSIER_VIDEOS)
+        if chemin != base and not chemin.startswith(base + os.sep):
             self._envoyer(403, '{"dit":"hors du dossier des videos"}'); return
         if not os.path.isfile(chemin):
             self._envoyer(404, '{"dit":"pas de fichier la"}'); return
@@ -105,9 +106,25 @@ class Guichet(BaseHTTPRequestHandler):
         debut, fin = 0, taille - 1
         if plage and plage.startswith("bytes="):
             a, _, b = plage[6:].partition("-")
-            debut = int(a) if a else 0
-            fin = int(b) if b else taille - 1
+            try:
+                if a == "" and b != "":
+                    # suffixe RFC 7233 : « bytes=-N » veut les N DERNIERS octets.
+                    debut = max(0, taille - int(b))
+                    fin = taille - 1
+                else:
+                    debut = int(a) if a else 0
+                    fin = int(b) if b else taille - 1
+            except ValueError:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % taille)
+                self.end_headers()
+                return
             fin = min(fin, taille - 1)
+            if debut > fin or debut < 0:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % taille)
+                self.end_headers()
+                return
         n = fin - debut + 1
         self.send_response(206 if plage else 200)
         self.send_header("Content-Type", type_)

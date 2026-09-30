@@ -337,8 +337,6 @@ def test_video_lien_symbolique_vers_dehors_refuse(video, tmp_path):
     assert _req(port, "/videos/lien.mp4")[0] == 403
 
 
-@pytest.mark.xfail(strict=True, reason="bug: boite-aux-reponses.py:99 compare par "
-                   "startswith sans separateur ; un dossier voisin 'videos-xxx' passe")
 def test_video_dossier_voisin_refuse(video, tmp_path):
     """Un dossier voisin qui commence par le meme nom (videos-prive) doit rester ferme."""
     boite, port, _ = video
@@ -372,24 +370,18 @@ def _brut(port, plage):
     return recu
 
 
-@pytest.mark.xfail(strict=True, reason="bug: boite-aux-reponses.py:108 int() d'une plage "
-                   "illisible leve ValueError : connexion coupee sans reponse (attendu 416)")
 def test_video_plage_illisible(video):
     """Range: bytes=abc- ne doit pas faire tomber la requete sans reponse."""
     _, port, _ = video
     assert _brut(port, "bytes=abc-").startswith(b"HTTP/1.0 416")
 
 
-@pytest.mark.xfail(strict=True, reason="bug: boite-aux-reponses.py:111 debut > fin donne "
-                   "Content-Length negatif (attendu 416)")
 def test_video_plage_inversee(video):
     """Range: bytes=50-10 (ou au-dela de la fin) : 416, pas un Content-Length negatif."""
     _, port, _ = video
     assert _brut(port, "bytes=50-10").startswith(b"HTTP/1.0 416")
 
 
-@pytest.mark.xfail(strict=True, reason="bug: boite-aux-reponses.py:108 la plage suffixe "
-                   "'bytes=-N' (N derniers octets, RFC 7233) est lue comme 0..N")
 def test_video_plage_suffixe(video):
     """Range: bytes=-10 veut les 10 DERNIERS octets."""
     _, port, contenu = video
