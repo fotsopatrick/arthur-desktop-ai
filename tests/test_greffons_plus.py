@@ -232,8 +232,6 @@ class TestWhatsapp:
         assert WA._extraire_le_texte("  envoie bonjour  ") == "envoie bonjour"
         assert WA._extraire_le_destinataire("envoie bonjour") is None
 
-    @pytest.mark.xfail(strict=True, reason="bug: greffons/whatsapp/greffon.py:47 — un ordre "
-                       "NIE (« n'envoie rien ») est pris pour un ordre d'envoi, et part en mode vrai")
     def test_ordre_nie_ne_part_pas(self, poste):
         envois, _ = poste
         WA.repondre("N'envoie surtout rien à Patrick", REGLAGES_VRAIS)

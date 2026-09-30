@@ -42,9 +42,25 @@ def _sans_accent(t):
 
 
 def _est_un_ordre_d_envoi(question):
-    """Vrai seulement si la phrase DEMANDE d'envoyer."""
+    """Vrai seulement si la phrase DEMANDE d'envoyer, et pas si elle l'interdit.
+
+    Ne le 30/09/2026 : « N'envoie surtout rien à Patrick » contient le mot
+    "envoie", donc partait quand meme en mode vrai. On regarde maintenant
+    les mots juste avant et juste apres le verbe : une negation la (n', ne,
+    jamais, pas, rien) annule l'ordre.
+    """
     plat = _sans_accent(question)
-    return any(re.search(r"\b" + v, plat) for v in VERBES_D_ENVOI)
+    for v in VERBES_D_ENVOI:
+        m = re.search(r"\b" + v, plat)
+        if not m:
+            continue
+        avant = plat[max(0, m.start() - 20):m.start()]
+        apres = plat[m.end():m.end() + 20]
+        nie = ("n'" in avant or re.search(r"\bne\b", avant)
+               or re.search(r"\b(jamais|pas|rien|surtout)\b", avant + " " + apres))
+        if not nie:
+            return True
+    return False
 
 
 def _extraire_le_texte(question):
