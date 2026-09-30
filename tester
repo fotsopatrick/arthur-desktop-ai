@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Tous les tests d'Arthur + la couverture + le tableau de bord, d'une commande.
+#   ./tester            tout (puis ouvre qualite/rapport/index.html)
+#   ./tester --vite     seulement tests/ (pytest)
+#   ./tester --serie X  une seule serie
+# Rien a installer : pytest vient de vendor/, la mesure est en Python standard.
+cd "$(dirname "$0")" || exit 1
+python3 qualite/lancer.py "$@"
+code=$?
+page="qualite/rapport/index.html"
+if [ -f "$page" ] && [ -z "${ARTHUR_NE_PAS_OUVRIR:-}" ]; then
+  (xdg-open "$page" || open "$page") >/dev/null 2>&1 &
+fi
+exit $code
