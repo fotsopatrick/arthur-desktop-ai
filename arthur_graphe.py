@@ -117,16 +117,22 @@ def noeud_gros_cerveau(etat: Etat) -> Etat:
                     "etapes": _pas(etat, "gros_cerveau : morgan")}
         essais.append("morgan : rien")
 
-    externe = _MOTEUR._cerveau_externe(choix)
-    if externe:
-        d = NM.fournisseurs.demander(externe, q, extraits, consigne=NM.CONSIGNE_ALICE)
-        if d.get("reponse") and "je ne sais pas" not in d["reponse"].lower():
-            return {"sortie": NM.NanoMoteurUltraEngine._sortie(
-                        True, "Passe a %s (%s)%s." % (externe, d.get("modele") or "?",
-                                                      ", avec les documents" if extraits else ""),
-                        d["reponse"], externe, 0.0, t0, source=externe),
-                    "etapes": _pas(etat, "gros_cerveau : %s" % externe)}
-        essais.append("%s : %s" % (externe, d.get("panne") or "« je ne sais pas »"))
+    def _externes(liste):
+        for externe in liste:
+            d = NM.fournisseurs.demander(externe, q, extraits, consigne=NM.CONSIGNE_ALICE)
+            if d.get("reponse") and "je ne sais pas" not in d["reponse"].lower():
+                return {"sortie": NM.NanoMoteurUltraEngine._sortie(
+                            True, "Passe a %s (%s)%s." % (externe, d.get("modele") or "?",
+                                                          ", avec les documents" if extraits else ""),
+                            d["reponse"], externe, 0.0, t0, source=externe),
+                        "etapes": _pas(etat, "gros_cerveau : %s" % externe)}
+            essais.append("%s : %s" % (externe, d.get("panne") or "« je ne sais pas »"))
+        return None
+
+    # le choisi et « cerveau_repli », dans l'ordre, Qwen a sa place
+    fin = _externes(_MOTEUR._cerveaux_externes(choix))
+    if fin:
+        return fin
 
     r, panne = _MOTEUR.demander_a_alice(q, extraits)
     if r and "je ne sais pas" not in r.lower():
@@ -137,6 +143,9 @@ def noeud_gros_cerveau(etat: Etat) -> Etat:
                     r, source, 0.0, t0, source=source),
                 "etapes": _pas(etat, "gros_cerveau : qwen")}
     essais.append("qwen : %s" % (panne or ("« je ne sais pas »" if r else "rien")))
+    fin = _externes(_MOTEUR._cerveaux_externes(choix, apres_qwen=True))
+    if fin:
+        return fin
     return {"sortie": None,
             "etapes": _pas(etat, "gros_cerveau : " + " ; ".join(essais))}
 
@@ -155,6 +164,15 @@ def noeud_aveu(etat: Etat) -> Etat:
 # ── LES ARETES ───────────────────────────────────────────────────────────────
 def apres_local(etat: Etat) -> str:
     return "documents_distants" if (etat.get("sortie") or {}).get("peut_monter") else END
+
+
+def apres_documents(etat: Etat) -> str:
+    """Une question que le moteur ne laisse monter QUE pour lire des
+    documents (peut_monter == "documents", ex. une fiche faux positif) :
+    sans extraits, on s'arrete sur l'aveu du noeud local."""
+    if not etat.get("extraits") and (etat.get("sortie") or {}).get("peut_monter") == "documents":
+        return END
+    return "gros_cerveau"
 
 
 def apres_gros_cerveau(etat: Etat) -> str:
@@ -200,7 +218,7 @@ def construire(avec_langgraph=AVEC_LANGGRAPH):
     g.add_node("aveu", noeud_aveu)
     g.add_edge(START, "local")
     g.add_conditional_edges("local", apres_local, ["documents_distants", END])
-    g.add_edge("documents_distants", "gros_cerveau")
+    g.add_conditional_edges("documents_distants", apres_documents, ["gros_cerveau", END])
     g.add_conditional_edges("gros_cerveau", apres_gros_cerveau, ["aveu", END])
     g.add_edge("aveu", END)
     return g.compile()

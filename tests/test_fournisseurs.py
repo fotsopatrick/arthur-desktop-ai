@@ -138,6 +138,27 @@ def test_les_extraits_vont_dans_la_consigne(maison):
     assert "odoo.md" in systeme and "14 jours" in systeme
 
 
+def test_le_plafond_euros_prend_le_prix_le_plus_cher(maison, monkeypatch):
+    # prix general 1 EUR/M et plafond 5 EUR : 900 jetons passent largement...
+    _ouvrir_le_porte_monnaie(maison)
+    assert fournisseurs.demander("payant", "?")["reponse"] == "Yaounde."
+    # ... mais une fiche a 10 000 EUR/M fait deborder le plafond : rien ne part
+    reglages = json.load(open(os.environ["ARTHUR_REGLAGES"]))
+    reglages["cerveaux"]["payant"]["euros_par_million"] = 10000
+    open(os.environ["ARTHUR_REGLAGES"], "w").write(json.dumps(reglages))
+    _Faux.recus.clear()
+    d = fournisseurs.demander("payant", "?")
+    assert d["reponse"] is None and "euros" in d["panne"] and _Faux.recus == []
+
+
+def test_une_reponse_facturee_puis_rejetee_est_notee(maison):
+    _ouvrir_le_porte_monnaie(maison)
+    _Faux.reponse = {"choices": [{"message": {"content": None}, "finish_reason": "length"}],
+                     "usage": {"total_tokens": 77}}
+    d = fournisseurs.demander("payant", "?")
+    assert d["reponse"] is None and budget_nebius.etat()["total"] == 77
+
+
 # ── les pannes, dites en clair ───────────────────────────────────────────────
 def test_402_plus_de_credit(maison):
     _Faux.code = 402

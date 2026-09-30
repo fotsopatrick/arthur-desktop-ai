@@ -112,8 +112,17 @@ juge(not notes, "... et aucune « regle manquante » n'est notee pour le bottom-
 appels = []
 E.chercher_dans_la_maison = lambda self, q: (appels.append(q), (None, 0))[1]
 E.alice_est_injoignable = staticmethod(lambda: True)
+# (30/09) Le cas protege : une commande « rag_maison » (lente, jusqu'a 30 s)
+# dont seule Alice lirait les extraits. On le dit explicitement.
+M.RAG_MAISON = ["faux-rag-maison"]
 r = a.repondre(QUESTION, choisir="qwen")
 juge(not appels, "Alice deja connue injoignable : on ne cherche pas pour rien (pas 30 s d'attente)")
+# Sans « rag_maison », la recherche est le RAG local : instantane, et citable
+# sans Alice. La lire vaut mieux qu'avouer (revue de code du 30/09).
+M.RAG_MAISON = None
+appels.clear()
+r = a.repondre(QUESTION, choisir="qwen")
+juge(bool(appels), "sans rag_maison, les documents locaux sont lus meme Alice muette")
 E.alice_est_injoignable = staticmethod(lambda: False)
 
 print("")
