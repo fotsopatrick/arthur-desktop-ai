@@ -6,6 +6,8 @@
     python3 qualite/lancer.py --vite       seulement tests/ (pytest)
     python3 qualite/lancer.py --serie X    une seule serie (nom de fichier)
     python3 qualite/lancer.py --page       refaire la page depuis le dernier resultat
+    python3 qualite/lancer.py --rapport D  ecrire le rapport dans le dossier D
+    python3 qualite/lancer.py --voir F     afficher ce qu'il reste a couvrir dans F
 
 Resultat : qualite/rapport/index.html (a ouvrir dans un navigateur, sans
 internet) et qualite/rapport/resultats.json.
@@ -289,7 +291,25 @@ def _historique(donnees):
     return histo
 
 
+def _plages(lignes):
+    """[3,4,5,9] -> '3-5, 9'"""
+    morceaux, debut, prec = [], None, None
+    for n in lignes + [None]:
+        if debut is None:
+            debut = prec = n
+        elif n is not None and n == prec + 1:
+            prec = n
+        else:
+            morceaux.append(str(debut) if debut == prec else "%d-%d" % (debut, prec))
+            debut = prec = n
+    return ", ".join(m for m in morceaux if m != "None") or "aucune"
+
+
 def main(argv):
+    global RAPPORT
+    if "--rapport" in argv:
+        # un autre dossier de rapport (plusieurs mesures en parallele)
+        RAPPORT = os.path.abspath(argv[argv.index("--rapport") + 1])
     if "--page" in argv:
         # refaire seulement la page a partir du dernier resultats.json
         import tableau
@@ -341,6 +361,15 @@ def main(argv):
     print("  Series     : %d vertes · %d rouges · %d sautees"
           % (t["series_vertes"], t["series_rouges"], t["series_sautees"]))
     print("  Tableau    : %s" % page)
+    if "--voir" in argv:
+        # le detail d'un ou plusieurs fichiers : ce qu'il reste a couvrir
+        motif = argv[argv.index("--voir") + 1]
+        for m in donnees["modules"]:
+            if motif in m["fichier"]:
+                jamais = [f["nom"] for f in m["fonctions"] if f["etat"] == "jamais appelee"]
+                print("\n  %s : %.1f %% (%s)" % (m["fichier"], m["pourcent"], m["verdict"]))
+                print("    jamais appelees : %s" % (", ".join(jamais) or "aucune"))
+                print("    lignes manquees : %s" % _plages(m["manquees"]))
     return 1 if t["series_rouges"] else 0
 
 
