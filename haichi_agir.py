@@ -41,14 +41,16 @@ MAISON = os.path.expanduser("~")
 # ── CE QU'ON NE FAIT JAMAIS ─────────────────────────────────────────────
 # Chaque ligne dit AUSSI pourquoi : un refus sans raison n'apprend rien.
 GESTES_REFUSES = [
-    (r"\brm\s+(-[a-zA-Z]*\s+)*-?[a-zA-Z]*[rf]", "effacer des fichiers"),
+    (r"\brm\s+(?:(?:-[a-zA-Z]+|--[a-zA-Z][a-zA-Z-]*)\s+)*"
+     r"(?:-[a-zA-Z]*[rf][a-zA-Z]*\b|--recursive\b|--force\b)",
+     "effacer des fichiers"),
     (r"\b(mkfs|fdisk|parted|dd)\b", "toucher au disque lui-meme"),
     (r"\b(shutdown|reboot|poweroff|halt|init\s+0)\b", "eteindre la machine"),
     (r"\bchmod\s+(-R\s+)?777\b", "ouvrir un fichier a tout le monde"),
     (r"(curl|wget)[^|;]*\|\s*(sudo\s+)?(sh|bash|zsh|python)",
      "lancer ce qu'on vient de telecharger sans l'avoir lu"),
     (r">\s*/dev/(sd|nvme|hd)", "ecrire directement sur un disque"),
-    (r"\b:\(\)\s*\{.*\};", "une bombe qui se recopie sans fin"),
+    (r":\(\)\s*\{.*\};", "une bombe qui se recopie sans fin"),
     (r"\bkill\s+-9\s+1\b", "tuer le premier programme de la machine"),
     # (29/09) d'autres facons d'effacer, vues en revue de code
     (r"\bfind\b.*\s-delete\b", "effacer des fichiers"),
